@@ -33,6 +33,7 @@ const FREE_TRIAL_DAYS = 30; // first month free for every new shop
 
 const CATEGORIES = [
   'pharmacy',
+  'doctor', // doctors & clinics
   'food',
   'furniture',
   'electronics',
@@ -41,9 +42,13 @@ const CATEGORIES = [
   'rental', // landlords & rentals
   'gym',
   'coach', // sports coaching
-  'tutor',
+  'tutor', // educators
+  'salon', // beauty & salon
   'other',
 ];
+
+const MAX_PHOTO_BYTES = 2 * 1024 * 1024; // decoded photo size limit
+const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 
 const ORDER_STATUSES = ['pending', 'confirmed', 'completed', 'cancelled'];
 
@@ -54,6 +59,9 @@ const MIME = {
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
   '.ico': 'image/x-icon',
 };
 
@@ -113,7 +121,34 @@ function userFromRequest(req) {
 }
 
 function publicUser(u) {
-  return { id: u.id, name: u.name, email: u.email, phone: u.phone, role: u.role };
+  return {
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    phone: u.phone,
+    role: u.role,
+    provider_type: u.provider_type || '',
+    interests: Array.isArray(u.interests) ? u.interests : [],
+    created_at: u.created_at,
+  };
+}
+
+function sanitizeInterests(v) {
+  if (!Array.isArray(v)) return [];
+  return [...new Set(v.filter((x) => CATEGORIES.includes(x)))];
+}
+
+/** Decode a data-URL photo payload and persist it. Returns the public URL. */
+function savePhoto(dataUrl, name) {
+  const match = /^data:image\/(jpeg|jpg|png|webp);base64,(.+)$/.exec(String(dataUrl || ''));
+  if (!match) fail(400, 'invalid_image');
+  const buf = Buffer.from(match[2], 'base64');
+  if (!buf.length || buf.length > MAX_PHOTO_BYTES) fail(400, 'image_too_large');
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  const ext = match[1] === 'png' ? 'png' : match[1] === 'webp' ? 'webp' : 'jpg';
+  const filename = `${name}.${ext}`;
+  fs.writeFileSync(path.join(UPLOADS_DIR, filename), buf);
+  return '/uploads/' + filename;
 }
 
 // ---- Fee helpers ------------------------------------------------------------
@@ -197,6 +232,7 @@ function shopSummary(shop) {
     address: shop.address,
     lat: shop.lat,
     lng: shop.lng,
+    photo: shop.photo || '',
     created_at: shop.created_at,
     product_count: db.products.filter((p) => p.shopId === shop.id).length,
     completed_orders: db.orders.filter((o) => o.shopId === shop.id && o.status === 'completed').length,
@@ -240,6 +276,10 @@ async function handleApi(req, res, url) {
       email,
       phone,
       role,
+      // Owners declare what they offer (doctor, educator, shop, ...);
+      // customers declare which services they need (used to personalize browse).
+      provider_type: role === 'owner' && CATEGORIES.includes(b.provider_type) ? b.provider_type : '',
+      interests: role === 'customer' ? sanitizeInterests(b.interests) : [],
       password: hashPassword(password),
       created_at: now(),
     };
@@ -269,6 +309,17 @@ async function handleApi(req, res, url) {
   if (method === 'GET' && p === '/api/me') {
     const user = userFromRequest(req);
     return sendJson(res, 200, { user: user ? publicUser(user) : null });
+  }
+
+  if (method === 'PUT' && p === '/api/me') {
+    const user = requireUser(req);
+    const b = await readBody(req);
+    if (b.name !== undefined) user.name = str(b.name, 100) || user.name;
+    if (b.phone !== undefined) user.phone = str(b.phone, 30);
+    if (b.interests !== undefined) user.interests = sanitizeInterests(b.interests);
+    if (b.provider_type !== undefined && CATEGORIES.includes(b.provider_type)) user.provider_type = b.provider_type;
+    save();
+    return sendJson(res, 200, { user: publicUser(user) });
   }
 
   // ---------- Meta ----------
@@ -366,6 +417,30 @@ async function handleApi(req, res, url) {
     if (lng >= -180 && lng <= 180) shop.lng = lng;
     save();
     return sendJson(res, 200, { shop: { ...shopSummary(shop), billing: shopBilling(shop) } });
+  }
+
+  // ---------- Photos ----------
+  if (method === 'POST' && seg[0] === 'api' && seg[1] === 'shops' && seg[3] === 'photo' && seg.length === 4) {
+    const user = requireUser(req);
+    const shop = db.shops.find((s) => s.id === seg[2]);
+    if (!shop) fail(404, 'shop_not_found');
+    if (shop.ownerId !== user.id && user.role !== 'admin') fail(403, 'not_your_shop');
+    const b = await readBody(req, 3 * 1024 * 1024);
+    shop.photo = savePhoto(b.data, 'shop-' + shop.id);
+    save();
+    return sendJson(res, 200, { photo: shop.photo });
+  }
+
+  if (method === 'POST' && seg[0] === 'api' && seg[1] === 'products' && seg[3] === 'photo' && seg.length === 4) {
+    const user = requireUser(req);
+    const product = db.products.find((pr) => pr.id === seg[2]);
+    if (!product) fail(404, 'product_not_found');
+    const shop = db.shops.find((s) => s.id === product.shopId);
+    if (!shop || (shop.ownerId !== user.id && user.role !== 'admin')) fail(403, 'not_your_shop');
+    const b = await readBody(req, 3 * 1024 * 1024);
+    product.photo = savePhoto(b.data, 'product-' + product.id);
+    save();
+    return sendJson(res, 200, { photo: product.photo });
   }
 
   // ---------- Products / inventory ----------
@@ -539,7 +614,31 @@ async function handleApi(req, res, url) {
       };
     });
     const listingRevenueMonthly = shops.reduce((s, x) => s + x.billing.monthly_fee, 0);
+
+    // Orders per day (last 14 days) and completed revenue by category, for charts.
+    const days = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 24 * 3600 * 1000).toISOString().slice(0, 10);
+      days.push({ date: d, orders: 0, fees: 0 });
+    }
+    const dayIndex = Object.fromEntries(days.map((d, i) => [d.date, i]));
+    const revenueByCategory = {};
+    for (const o of db.orders) {
+      const idx = dayIndex[o.created_at.slice(0, 10)];
+      if (idx !== undefined) {
+        days[idx].orders++;
+        if (o.status === 'completed') days[idx].fees += o.platform_fee;
+      }
+      if (o.status === 'completed') {
+        const orderShop = db.shops.find((s) => s.id === o.shopId);
+        const cat = orderShop ? orderShop.category : 'other';
+        revenueByCategory[cat] = (revenueByCategory[cat] || 0) + o.subtotal;
+      }
+    }
+
     return sendJson(res, 200, {
+      orders_by_day: days,
+      revenue_by_category: revenueByCategory,
       totals: {
         users: db.users.length,
         customers: db.users.filter((u) => u.role === 'customer').length,
@@ -698,8 +797,10 @@ async function handleSurvey(req, res, url) {
 function serveStatic(req, res, urlPath) {
   let filePath = urlPath === '/' ? '/index.html' : urlPath;
   filePath = path.normalize(filePath).replace(/^(\.\.[/\\])+/, '');
-  const absolute = path.join(PUBLIC_DIR, filePath);
-  if (!absolute.startsWith(PUBLIC_DIR)) {
+  // Uploaded shop/product photos live in the persistent data dir, not /public.
+  const baseDir = filePath.startsWith('/uploads/') || filePath.startsWith('uploads/') ? DATA_DIR : PUBLIC_DIR;
+  const absolute = path.join(baseDir, filePath);
+  if (!absolute.startsWith(baseDir)) {
     res.writeHead(403);
     return res.end('Forbidden');
   }

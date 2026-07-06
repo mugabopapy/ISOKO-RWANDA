@@ -6,7 +6,9 @@ Everything is bilingual: **English ⇄ Kinyarwanda** toggle on every page.
 
 ## Categories
 
-Pharmacy 💊 · Food shop 🍎 · Furniture 🛋️ · Electronics 📱 · Clothes 👗 · Shoes 👟 · Landlord & rentals 🏠 · Gym & fitness 🏋️ · Sports coaching ⚽ · Tutors & lessons 📚 · Other 🛍️
+Pharmacy 💊 · Doctors & clinics 🩺 · Food shop 🍎 · Furniture 🛋️ · Electronics 📱 · Clothes 👗 · Shoes 👟 · Landlord & rentals 🏠 · Gym & fitness 🏋️ · Sports coaching ⚽ · Tutors & education 📚 · Beauty & salon 💇 · Other 🛍️
+
+At registration, providers pick what they offer from this list (doctor, educator, shop owner, landlord, coach, …) and customers pick which services they need — the home page then shows a personalized **"For you"** section.
 
 ## Revenue model (built in)
 
@@ -20,11 +22,11 @@ The platform admin dashboard shows GMV, collected transaction-fee revenue, and m
 
 ## The platform
 
-- **Browse** (`/`) — search + category chips + **live map** (Leaflet/OpenStreetMap, no API key needed). Shops appear as pins; with location permission, results sort by distance.
-- **Shop page** (`/shop.html?id=…`) — real inventory with prices and stock, cart, and checkout with **Mobile Money** (payment flow is simulated for the MVP; funds are "held" and released to the shop when the order is completed).
-- **Owner dashboard** (`/dashboard.html`) — register shops (tap the map to pin the exact location), manage inventory (products, services, rentals, sessions — leave stock empty for unlimited/services), and process orders: confirm → complete (or cancel; stock is restored).
-- **Customer orders** (`/orders.html`) — track order status, cancel while pending.
-- **Platform admin** (`/platform-admin.html`) — totals, GMV, fee revenue, listing revenue, every shop with billing status, recent orders. Log in with the admin account.
+- **Browse** (`/`) — hero visuals, illustrated category tiles, search, and a **live map** (Leaflet/OpenStreetMap, no API key needed). Shops appear as pins with photo popups; with location permission, results sort by distance. Logged-in customers get a personalized **"For you"** row based on the services they need.
+- **Shop page** (`/shop.html?id=…`) — shop photo banner, real inventory with prices, stock and item photos, cart, and checkout with **Mobile Money** (payment flow is simulated for the MVP; funds are "held" and released to the shop when the order is completed).
+- **Owner dashboard** (`/dashboard.html`) — register shops (tap the map to pin the exact location), **upload shop and product photos**, manage inventory (products, services, rentals, sessions — leave stock empty for unlimited/services), and process orders: confirm → complete (or cancel; stock is restored).
+- **Customer dashboard** (`/orders.html`) — spending stats, editable profile and services-needed interests, full order history, cancel while pending.
+- **Platform admin** (`/platform-admin.html`) — totals, GMV, fee revenue, listing revenue, **orders-per-day and revenue-by-category charts**, every shop with billing status, recent orders. Log in with the admin account.
 - **Feedback** (`/survey.html`) — bilingual customer/shop-owner feedback survey, with its own admin at `/survey-admin.html` and CSV export.
 
 ## Run it
@@ -54,7 +56,7 @@ With the server running:
 node scripts/seed-demo.js
 ```
 
-Seeds 10 shops across Kigali (one per category) with realistic inventory. Demo owner logins: `alice@demo.rw` … `olivier@demo.rw`, password `demo1234`.
+Seeds **30 providers** across Kigali, Huye, Musanze and Rubavu — shops, pharmacies, doctors and clinics, educators, salons, gyms, coaches, landlords — with ~100 realistic products and services. Demo owner logins: any seeded email (e.g. `alice@demo.rw`), password `demo1234`.
 
 ## Put it online (no coding tools needed)
 

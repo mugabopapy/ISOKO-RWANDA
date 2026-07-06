@@ -34,7 +34,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="common.js"></script>
   <script>
-    const { t, api, catLabel, esc, money, renderHeader, getCart, setCart, clearCart, currentUser } = window.ISOKO;
+    const { t, api, catLabel, esc, money, renderHeader, getCart, setCart, clearCart, shopPhoto } = window.ISOKO;
     const shopId = new URLSearchParams(location.search).get('id');
     let shop, products = [], user = null;
 
@@ -61,6 +61,7 @@
     function renderShop() {
       document.title = `iSoko — ${shop.name}`;
       document.getElementById('shopPanel').innerHTML = `
+        <img src="${esc(shopPhoto(shop))}" style="width:calc(100% + 52px);margin:-26px -26px 16px;height:220px;object-fit:cover;border-radius:var(--radius) var(--radius) 0 0" alt="" />
         <span class="cat-tag" style="background:var(--green-soft);color:var(--green-dark);border-radius:999px;padding:4px 12px;font:600 12.5px Inter">${esc(catLabel(shop.category))}</span>
         <h1 style="margin:10px 0 8px">${esc(shop.name)}</h1>
         <p class="intro" style="margin-bottom:10px">${esc(shop.description || '')}</p>
@@ -88,6 +89,7 @@
         const row = document.createElement('div');
         row.className = 'item-row';
         row.innerHTML = `
+          ${p.photo ? `<img src="${esc(p.photo)}" style="width:60px;height:60px;object-fit:cover;border-radius:10px" alt="" />` : ''}
           <div class="item-info">
             <div class="name">${esc(p.name)}${p.unit ? ` <span class="sub">/ ${esc(p.unit)}</span>` : ''}</div>
             <div class="sub">${esc(p.description || '')}</div>

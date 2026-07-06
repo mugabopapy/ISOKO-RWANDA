@@ -29,7 +29,14 @@
       </div>
     </div>
 
-    <div class="chips" id="chips"></div>
+    <h2 class="section-heading" id="catHeading"></h2>
+    <div class="cat-tiles" id="catTiles"></div>
+
+    <section id="forYouSection" class="hidden">
+      <h2 class="section-heading" id="forYouTitle"></h2>
+      <p class="section-sub" id="forYouSub"></p>
+      <div class="shop-grid" id="forYouGrid" style="margin-bottom:26px"></div>
+    </section>
 
     <div id="map" class="hidden"></div>
     <p class="count-label" id="countLabel"></p>
@@ -40,13 +47,14 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="common.js"></script>
   <script>
-    const { t, api, catLabel, CATEGORIES, esc, renderHeader } = window.ISOKO;
+    const { t, api, catLabel, catImg, shopPhoto, CATEGORIES, esc, renderHeader } = window.ISOKO;
     const KIGALI = [-1.9441, 30.0619];
     let shops = [];
     let activeCategory = '';
     let query = '';
     let map, markersLayer;
     let userPos = null;
+    let me = null;
 
     document.getElementById('heroTitle').textContent = t('heroTitle');
     document.getElementById('heroSub').textContent = t('heroSub');
@@ -54,22 +62,58 @@
     document.getElementById('searchInput').placeholder = t('searchPlaceholder');
     document.getElementById('listBtn').textContent = t('mapListToggleList');
     document.getElementById('mapBtn').textContent = t('mapListToggleMap');
+    document.getElementById('catHeading').textContent = t('browseByCategory');
 
-    function renderChips() {
-      const chips = document.getElementById('chips');
-      chips.innerHTML = '';
-      const all = document.createElement('button');
-      all.className = 'chip' + (activeCategory === '' ? ' active' : '');
-      all.textContent = t('allCategories');
-      all.onclick = () => { activeCategory = ''; renderChips(); load(); };
-      chips.appendChild(all);
+    function renderTiles() {
+      const tiles = document.getElementById('catTiles');
+      tiles.innerHTML = '';
       for (const id of Object.keys(CATEGORIES)) {
         const b = document.createElement('button');
-        b.className = 'chip' + (activeCategory === id ? ' active' : '');
-        b.textContent = catLabel(id);
-        b.onclick = () => { activeCategory = id; renderChips(); load(); };
-        chips.appendChild(b);
+        b.className = 'cat-tile' + (activeCategory === id ? ' active' : '');
+        b.innerHTML = `<img src="${catImg(id)}" alt="" loading="lazy" />
+          <span class="tile-label">${CATEGORIES[id].emoji} ${esc(CATEGORIES[id][window.ISOKO.lang()])}</span>`;
+        b.onclick = () => {
+          activeCategory = activeCategory === id ? '' : id;
+          renderTiles();
+          load();
+        };
+        tiles.appendChild(b);
       }
+    }
+
+    function shopCard(s) {
+      const dist = userPos ? t('distanceAway', distanceKm(userPos, [s.lat, s.lng]).toFixed(1)) : '';
+      const card = document.createElement('div');
+      card.className = 'shop-card';
+      card.innerHTML = `
+        <img class="card-photo" src="${esc(shopPhoto(s))}" alt="" loading="lazy" />
+        <span class="cat-tag">${esc(catLabel(s.category))}</span>
+        <h3>${esc(s.name)}</h3>
+        <p class="desc">${esc(s.description || '')}</p>
+        <p class="meta">${s.product_count} ${t('items')} · ${s.completed_orders} ${t('ordersDone')}${dist ? ' · ' + dist : ''}</p>
+        <p class="meta">${esc(s.address || '')}</p>
+        <a class="btn btn-primary btn-sm" href="/shop.html?id=${s.id}">${t('viewShop')}</a>`;
+      return card;
+    }
+
+    function renderForYou() {
+      const section = document.getElementById('forYouSection');
+      const interests = me && me.interests && me.interests.length ? me.interests : null;
+      if (!interests || activeCategory || query) {
+        section.classList.add('hidden');
+        return;
+      }
+      const picks = shops.filter((s) => interests.includes(s.category)).slice(0, 6);
+      if (!picks.length) {
+        section.classList.add('hidden');
+        return;
+      }
+      document.getElementById('forYouTitle').textContent = '⭐ ' + t('forYou');
+      document.getElementById('forYouSub').textContent = t('forYouSub');
+      const grid = document.getElementById('forYouGrid');
+      grid.innerHTML = '';
+      picks.forEach((s) => grid.appendChild(shopCard(s)));
+      section.classList.remove('hidden');
     }
 
     function distanceKm(a, b) {
@@ -85,19 +129,8 @@
       grid.innerHTML = '';
       empty.classList.toggle('hidden', shops.length > 0);
       empty.textContent = t('noShops');
-      for (const s of shops) {
-        const dist = userPos ? t('distanceAway', distanceKm(userPos, [s.lat, s.lng]).toFixed(1)) : '';
-        const card = document.createElement('div');
-        card.className = 'shop-card';
-        card.innerHTML = `
-          <span class="cat-tag">${esc(catLabel(s.category))}</span>
-          <h3>${esc(s.name)}</h3>
-          <p class="desc">${esc(s.description || '')}</p>
-          <p class="meta">${s.product_count} ${t('items')} · ${s.completed_orders} ${t('ordersDone')}${dist ? ' · ' + dist : ''}</p>
-          <p class="meta">${esc(s.address || '')}</p>
-          <a class="btn btn-primary btn-sm" href="/shop.html?id=${s.id}">${t('viewShop')}</a>`;
-        grid.appendChild(card);
-      }
+      shops.forEach((s) => grid.appendChild(shopCard(s)));
+      renderForYou();
     }
 
     function ensureMap() {
@@ -116,7 +149,8 @@
       const bounds = [];
       for (const s of shops) {
         const m = L.marker([s.lat, s.lng]).addTo(markersLayer);
-        m.bindPopup(`<h4>${esc(s.name)}</h4>${esc(catLabel(s.category))}<br>
+        m.bindPopup(`<img src="${esc(shopPhoto(s))}" style="width:180px;height:90px;object-fit:cover;border-radius:8px" /><br>
+          <h4>${esc(s.name)}</h4>${esc(catLabel(s.category))}<br>
           ${s.product_count} ${t('items')}<br>
           <a href="/shop.html?id=${s.id}">${t('viewShop')} →</a>`);
         bounds.push([s.lat, s.lng]);
@@ -164,9 +198,11 @@
       );
     }
 
-    renderHeader('home');
-    renderChips();
-    load();
+    renderTiles();
+    renderHeader('home').then((user) => {
+      me = user;
+      load();
+    });
   </script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>iSoko Rwanda — My orders</title>
+  <title>iSoko Rwanda — My dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="market.css" />
@@ -11,20 +11,70 @@
 <body class="market">
   <header id="site-header"></header>
 
-  <div class="page" style="max-width:760px">
+  <div class="page" style="max-width:860px">
+    <h1 id="welcome" style="font-family:Sora;margin:6px 0 14px"></h1>
+    <div class="stat-grid" id="stats"></div>
+
     <div class="panel">
-      <h2 id="title"></h2>
+      <h2 id="profileTitle"></h2>
+      <div class="form-grid two">
+        <div class="field"><label id="pNameLbl"></label><input type="text" id="pName" /></div>
+        <div class="field"><label id="pPhoneLbl"></label><input type="tel" id="pPhone" /></div>
+      </div>
+      <div class="field">
+        <label id="pInterestsLbl"></label>
+        <div class="chips" id="interestChips" style="margin-bottom:6px"></div>
+      </div>
+      <p class="notice ok hidden" id="savedOk"></p>
+      <button class="btn btn-primary btn-sm" id="saveBtn"></button>
+    </div>
+
+    <div class="panel">
+      <h2 id="ordersTitle"></h2>
       <div id="orderList"></div>
     </div>
   </div>
 
   <script src="common.js"></script>
   <script>
-    const { t, api, esc, money, renderHeader } = window.ISOKO;
+    const { t, api, esc, money, renderHeader, CATEGORIES, lang } = window.ISOKO;
+    const $ = (id) => document.getElementById(id);
+    let me = null;
+    let interests = [];
 
-    async function load() {
+    function renderInterestChips() {
+      const box = $('interestChips');
+      box.innerHTML = '';
+      for (const [id, c] of Object.entries(CATEGORIES)) {
+        if (id === 'other') continue;
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip' + (interests.includes(id) ? ' active' : '');
+        b.textContent = `${c.emoji} ${c[lang()]}`;
+        b.onclick = () => {
+          interests = interests.includes(id) ? interests.filter((x) => x !== id) : [...interests, id];
+          renderInterestChips();
+        };
+        box.appendChild(b);
+      }
+    }
+
+    function renderStats(orders) {
+      const completed = orders.filter((o) => o.status === 'completed');
+      const spent = completed.reduce((s, o) => s + o.subtotal, 0);
+      const shopsUsed = new Set(orders.map((o) => o.shopId)).size;
+      const stat = (num, lbl) => `<div class="stat"><div class="num">${num}</div><div class="lbl">${lbl}</div></div>`;
+      $('stats').innerHTML =
+        stat(orders.length, t('statOrdersMade')) +
+        stat(completed.length, t('statCompletedOrders')) +
+        stat(spent.toLocaleString(), t('statSpent')) +
+        stat(shopsUsed, t('statShopsUsed'));
+    }
+
+    async function loadOrders() {
       const data = await api('/api/my/orders');
-      const list = document.getElementById('orderList');
+      renderStats(data.orders);
+      const list = $('orderList');
       if (!data.orders.length) {
         list.innerHTML = `<p class="empty-state">${t('noOrders')}</p>`;
         return;
@@ -54,20 +104,39 @@
         if (cancelBtn)
           cancelBtn.addEventListener('click', async () => {
             await api('/api/orders/' + o.id + '/status', { method: 'POST', body: { status: 'cancelled' } });
-            load();
+            loadOrders();
           });
         list.appendChild(card);
       }
     }
 
     (async () => {
-      document.getElementById('title').textContent = t('myOrdersTitle');
-      const user = await renderHeader('orders');
-      if (!user) {
+      $('profileTitle').textContent = t('profileTitle');
+      $('ordersTitle').textContent = t('ordersTitle');
+      $('pNameLbl').textContent = t('fullName');
+      $('pPhoneLbl').textContent = t('phone');
+      $('pInterestsLbl').textContent = t('interestsLabel');
+      $('saveBtn').textContent = t('saveProfile');
+      $('savedOk').textContent = t('profileSaved');
+
+      me = await renderHeader('orders');
+      if (!me) {
         location.href = '/auth.html?next=' + encodeURIComponent('/orders.html');
         return;
       }
-      load();
+      $('welcome').textContent = t('welcomeBack', me.name.split(' ')[0]);
+      $('pName').value = me.name;
+      $('pPhone').value = me.phone || '';
+      interests = me.interests || [];
+      renderInterestChips();
+
+      $('saveBtn').addEventListener('click', async () => {
+        await api('/api/me', { method: 'PUT', body: { name: $('pName').value, phone: $('pPhone').value, interests } });
+        $('savedOk').classList.remove('hidden');
+        setTimeout(() => $('savedOk').classList.add('hidden'), 2500);
+      });
+
+      loadOrders();
     })();
   </script>
 </body>

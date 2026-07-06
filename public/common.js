@@ -1,17 +1,19 @@
 /* Shared marketplace frontend: i18n, categories, API client, header, cart. */
 (function () {
   const CATEGORIES = {
-    pharmacy:    { emoji: '💊', en: 'Pharmacy',            rw: 'Farumasi' },
-    food:        { emoji: '🍎', en: 'Food shop',           rw: 'Ibiribwa' },
-    furniture:   { emoji: '🛋️', en: 'Furniture',           rw: 'Ibikoresho byo mu nzu' },
-    electronics: { emoji: '📱', en: 'Electronics',         rw: 'Ikoranabuhanga' },
-    clothes:     { emoji: '👗', en: 'Clothes',             rw: 'Imyenda' },
-    shoes:       { emoji: '👟', en: 'Shoes',               rw: 'Inkweto' },
-    rental:      { emoji: '🏠', en: 'Landlord & rentals',  rw: 'Amazu akodeshwa' },
-    gym:         { emoji: '🏋️', en: 'Gym & fitness',       rw: 'Siporo ngororamubiri' },
-    coach:       { emoji: '⚽', en: 'Sports coaching',     rw: 'Abatoza ba siporo' },
-    tutor:       { emoji: '📚', en: 'Tutors & lessons',    rw: 'Abarimu b\u2019inyigisho' },
-    other:       { emoji: '🛍️', en: 'Other',               rw: 'Ibindi' },
+    pharmacy:    { emoji: '💊', img: '/img/cat-pharmacy.jpg',    en: 'Pharmacy',            rw: 'Farumasi',                    provider: { en: 'Pharmacist', rw: 'Umufarumasiye' } },
+    doctor:      { emoji: '🩺', img: '/img/cat-doctor.jpg',      en: 'Doctors & clinics',   rw: 'Abaganga n\u2019amavuriro',   provider: { en: 'Doctor / clinic', rw: 'Umuganga / ivuriro' } },
+    food:        { emoji: '🍎', img: '/img/cat-food.jpg',        en: 'Food shop',           rw: 'Ibiribwa',                    provider: { en: 'Food shop owner', rw: 'Umucuruzi w\u2019ibiribwa' } },
+    furniture:   { emoji: '🛋️', img: '/img/cat-furniture.jpg',   en: 'Furniture',           rw: 'Ibikoresho byo mu nzu',       provider: { en: 'Furniture maker / seller', rw: 'Umucuruzi w\u2019ibikoresho byo mu nzu' } },
+    electronics: { emoji: '📱', img: '/img/cat-electronics.jpg', en: 'Electronics',         rw: 'Ikoranabuhanga',              provider: { en: 'Electronics shop owner', rw: 'Umucuruzi w\u2019ikoranabuhanga' } },
+    clothes:     { emoji: '👗', img: '/img/cat-clothes.jpg',     en: 'Clothes',             rw: 'Imyenda',                     provider: { en: 'Clothes shop owner', rw: 'Umucuruzi w\u2019imyenda' } },
+    shoes:       { emoji: '👟', img: '/img/cat-shoes.jpg',       en: 'Shoes',               rw: 'Inkweto',                     provider: { en: 'Shoe shop owner', rw: 'Umucuruzi w\u2019inkweto' } },
+    rental:      { emoji: '🏠', img: '/img/cat-rental.jpg',      en: 'Landlord & rentals',  rw: 'Amazu akodeshwa',             provider: { en: 'Landlord / rentals', rw: 'Nyir\u2019amazu akodeshwa' } },
+    gym:         { emoji: '🏋️', img: '/img/cat-gym.jpg',         en: 'Gym & fitness',       rw: 'Siporo ngororamubiri',        provider: { en: 'Gym owner', rw: 'Nyiri gym' } },
+    coach:       { emoji: '⚽', img: '/img/cat-coach.jpg',       en: 'Sports coaching',     rw: 'Abatoza ba siporo',           provider: { en: 'Sports coach', rw: 'Umutoza wa siporo' } },
+    tutor:       { emoji: '📚', img: '/img/cat-tutor.jpg',       en: 'Tutors & education',  rw: 'Abarimu n\u2019inyigisho',    provider: { en: 'Educator / tutor', rw: 'Umwarimu / umufasha mu masomo' } },
+    salon:       { emoji: '💇', img: '/img/cat-salon.jpg',       en: 'Beauty & salon',      rw: 'Ubwiza na salon',             provider: { en: 'Salon / beauty services', rw: 'Salon / serivisi z\u2019ubwiza' } },
+    other:       { emoji: '🛍️', img: '/img/cat-other.jpg',       en: 'Other',               rw: 'Ibindi',                      provider: { en: 'Other services', rw: 'Izindi serivisi' } },
   };
 
   const I18N = {
@@ -72,6 +74,27 @@
       inStock: (n) => `${n} in stock`,
       unlimited: 'Available',
       feeNote: 'Free to list. iSoko takes a small 4% fee only on completed orders — first month completely free of charge.',
+      providerTypeLabel: 'What do you offer?',
+      interestsLabel: 'Which services do you need? (choose any)',
+      forYou: 'For you',
+      forYouSub: 'Based on the services you told us you need',
+      browseByCategory: 'Browse by category',
+      myAccount: 'My dashboard',
+      profileTitle: 'My profile',
+      statOrdersMade: 'Orders placed',
+      statCompletedOrders: 'Completed',
+      statSpent: 'Total spent (RWF)',
+      statShopsUsed: 'Shops ordered from',
+      saveProfile: 'Save profile',
+      profileSaved: 'Profile saved.',
+      ordersTitle: 'Order history',
+      shopPhoto: 'Shop photo',
+      uploadPhoto: 'Upload photo',
+      changePhoto: 'Change photo',
+      photoHint: 'A good photo attracts more customers.',
+      ordersPerDay: 'Orders per day (last 14 days)',
+      revenueByCat: 'Completed sales by category (RWF)',
+      welcomeBack: (name) => `Welcome back, ${name}!`,
     },
     rw: {
       navHome: 'Shakisha', navOrders: 'Ibyo natumije', navDashboard: 'Amaduka yanjye', navAdmin: 'Ubuyobozi',
@@ -130,6 +153,27 @@
       inStock: (n) => `Hasigaye ${n}`,
       unlimited: 'Birahari',
       feeNote: 'Kwandikisha ni ubuntu. iSoko ifata 4% gusa ku byagurishijwe — ukwezi kwa mbere ni ubuntu bwuzuye.',
+      providerTypeLabel: 'Utanga iki?',
+      interestsLabel: 'Ni izihe serivisi ukeneye? (hitamo izo ushaka)',
+      forYou: 'Byagenewe wowe',
+      forYouSub: 'Bishingiye ku serivisi watubwiye ko ukeneye',
+      browseByCategory: 'Shakisha mu byiciro',
+      myAccount: 'Imbonerahamwe yanjye',
+      profileTitle: 'Umwirondoro wanjye',
+      statOrdersMade: 'Ibyo natumije',
+      statCompletedOrders: 'Ibyarangiye',
+      statSpent: 'Yose nakoresheje (RWF)',
+      statShopsUsed: 'Amaduka naguzeho',
+      saveProfile: 'Bika umwirondoro',
+      profileSaved: 'Umwirondoro wabitswe.',
+      ordersTitle: 'Amateka y\u2019ibyatumijwe',
+      shopPhoto: 'Ifoto y\u2019iduka',
+      uploadPhoto: 'Shyiraho ifoto',
+      changePhoto: 'Hindura ifoto',
+      photoHint: 'Ifoto nziza ikurura abakiriya benshi.',
+      ordersPerDay: 'Ibyatumijwe ku munsi (iminsi 14 ishize)',
+      revenueByCat: 'Ibyagurishijwe mu byiciro (RWF)',
+      welcomeBack: (name) => `Murakaza neza, ${name}!`,
     },
   };
 
@@ -205,7 +249,7 @@
     const link = (href, key, id) =>
       `<a href="${href}" class="nav-link${active === id ? ' active' : ''}">${t(key)}</a>`;
     let links = link('/', 'navHome', 'home');
-    if (user && user.role === 'customer') links += link('/orders.html', 'navOrders', 'orders');
+    if (user && user.role === 'customer') links += link('/orders.html', 'myAccount', 'orders');
     if (user && (user.role === 'owner' || user.role === 'admin')) links += link('/dashboard.html', 'navDashboard', 'dashboard');
     if (user && user.role === 'admin') links += link('/platform-admin.html', 'navAdmin', 'admin');
     links += link('/survey.html', 'navSurvey', 'survey');
@@ -240,10 +284,32 @@
   const esc = (s) =>
     String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+  const catImg = (id) => (CATEGORIES[id] ? CATEGORIES[id].img : '/img/cat-other.jpg');
+  const shopPhoto = (shop) => shop.photo || catImg(shop.category);
+
+  /** Read a picked image file, downscale it on a canvas, return a compact JPEG data URL. */
+  function fileToDataUrl(file, maxDim = 1000) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+
   window.ISOKO = {
-    CATEGORIES, t, lang: () => lang, setLang, catLabel,
+    CATEGORIES, t, lang: () => lang, setLang, catLabel, catImg, shopPhoto,
     api, currentUser, logout, renderHeader,
     getCart, setCart, clearCart,
-    money, esc,
+    money, esc, fileToDataUrl,
   };
 })();
