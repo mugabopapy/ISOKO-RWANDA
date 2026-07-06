@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>iSoko Rwanda — Log in / Register</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="market.css" />
+</head>
+<body class="market">
+  <header id="site-header"></header>
+
+  <div class="page" style="max-width:520px">
+    <div class="panel">
+      <div class="tabs">
+        <button id="tabLogin" class="active"></button>
+        <button id="tabRegister"></button>
+      </div>
+
+      <form id="loginForm" class="form-grid">
+        <h2 id="loginTitle"></h2>
+        <div class="field"><label id="lEmailLbl"></label><input type="email" id="lEmail" required /></div>
+        <div class="field"><label id="lPassLbl"></label><input type="password" id="lPass" required /></div>
+        <p class="notice err hidden" id="loginErr"></p>
+        <button class="btn btn-primary btn-block" id="loginBtn" type="submit"></button>
+      </form>
+
+      <form id="registerForm" class="form-grid hidden">
+        <h2 id="registerTitle"></h2>
+        <div class="field"><label id="rNameLbl"></label><input type="text" id="rName" required /></div>
+        <div class="field"><label id="rEmailLbl"></label><input type="email" id="rEmail" required /></div>
+        <div class="field"><label id="rPhoneLbl"></label><input type="tel" id="rPhone" required /></div>
+        <div class="field"><label id="rPassLbl"></label><input type="password" id="rPass" minlength="6" required /></div>
+        <div class="options">
+          <label class="option"><input type="radio" name="role" value="customer" checked /><span id="roleCustomer"></span></label>
+          <label class="option"><input type="radio" name="role" value="owner" /><span id="roleOwner"></span></label>
+        </div>
+        <p class="notice err hidden" id="regErr"></p>
+        <button class="btn btn-primary btn-block" id="regBtn" type="submit"></button>
+        <p class="q-sub" id="feeNote" style="margin-top:6px"></p>
+      </form>
+    </div>
+  </div>
+
+  <script src="common.js"></script>
+  <script>
+    const { t, api, renderHeader } = window.ISOKO;
+    const params = new URLSearchParams(location.search);
+    const next = params.get('next') || '';
+
+    const $ = (id) => document.getElementById(id);
+    $('tabLogin').textContent = t('loginTab');
+    $('tabRegister').textContent = t('registerTab');
+    $('loginTitle').textContent = t('loginTitle');
+    $('registerTitle').textContent = t('registerTitle');
+    $('lEmailLbl').textContent = $('rEmailLbl').textContent = t('email');
+    $('lPassLbl').textContent = $('rPassLbl').textContent = t('password');
+    $('rNameLbl').textContent = t('fullName');
+    $('rPhoneLbl').textContent = t('phone');
+    $('roleCustomer').textContent = t('iAmCustomer');
+    $('roleOwner').textContent = t('iAmOwner');
+    $('loginBtn').textContent = t('submitLogin');
+    $('regBtn').textContent = t('submitRegister');
+    $('loginErr').textContent = t('authError');
+    $('regErr').textContent = t('registerError');
+    $('feeNote').textContent = t('feeNote');
+
+    function showTab(which) {
+      $('loginForm').classList.toggle('hidden', which !== 'login');
+      $('registerForm').classList.toggle('hidden', which !== 'register');
+      $('tabLogin').classList.toggle('active', which === 'login');
+      $('tabRegister').classList.toggle('active', which === 'register');
+    }
+    $('tabLogin').onclick = () => showTab('login');
+    $('tabRegister').onclick = () => showTab('register');
+    if (params.get('role') === 'owner') {
+      showTab('register');
+      document.querySelector('input[name=role][value=owner]').checked = true;
+    }
+
+    function finish(data) {
+      localStorage.setItem('isoko_token', data.token);
+      const dest = next || (data.user.role === 'owner' ? '/dashboard.html' : '/');
+      location.href = dest;
+    }
+
+    $('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('loginErr').classList.add('hidden');
+      try {
+        finish(await api('/api/auth/login', { method: 'POST', body: { email: $('lEmail').value, password: $('lPass').value } }));
+      } catch {
+        $('loginErr').classList.remove('hidden');
+      }
+    });
+
+    $('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('regErr').classList.add('hidden');
+      try {
+        finish(await api('/api/auth/register', {
+          method: 'POST',
+          body: {
+            name: $('rName').value,
+            email: $('rEmail').value,
+            phone: $('rPhone').value,
+            password: $('rPass').value,
+            role: document.querySelector('input[name=role]:checked').value,
+          },
+        }));
+      } catch {
+        $('regErr').classList.remove('hidden');
+      }
+    });
+
+    renderHeader('');
+  </script>
+</body>
+</html>
