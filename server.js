@@ -37,6 +37,8 @@ const MIME = {
 
 const VALID_ROLES = new Set(['customer', 'shop_owner']);
 const VALID_LANGS = new Set(['en', 'rw']);
+// Free-text questions (see public/i18n.js) are excluded from choice aggregation.
+const TEXT_QUESTIONS = new Set(['trust_text', 'customer_suggestions', 'best_feature', 'owner_concerns']);
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_TEXT_LEN = 2000;
 
@@ -139,7 +141,8 @@ function buildStats(responses) {
     if (stats.by_language[r.language] !== undefined) stats.by_language[r.language]++;
     if (r.contact_ok) stats.contact_ok++;
     for (const [q, a] of Object.entries(r.answers || {})) {
-      const values = Array.isArray(a) ? a : typeof a === 'string' && a.length <= 40 ? [a] : [];
+      if (TEXT_QUESTIONS.has(q)) continue;
+      const values = Array.isArray(a) ? a : typeof a === 'string' && a.length <= 60 ? [a] : [];
       if (!values.length) continue;
       stats.answer_counts[q] = stats.answer_counts[q] || {};
       for (const v of values) {
