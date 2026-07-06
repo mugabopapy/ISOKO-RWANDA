@@ -56,7 +56,7 @@
       deliveryMethod: 'How do you want to receive it?', pickup: 'Pickup at shop', delivery: 'Delivery',
       deliveryAddress: 'Delivery address',
       placeOrder: 'Confirm order', orderPlaced: 'Order placed!',
-      orderPlacedBody: (code) => `Your order ${code} was sent to the shop. Payment is held via Mobile Money and released when the order is completed. Track it in “My orders”.`,
+      orderPlacedBody: (code) => `Your order ${code} was sent to the shop. Track it in “My orders”.`,
       viewMyOrders: 'View my orders', continueShopping: 'Continue browsing',
       loginToOrder: 'Log in to order',
       myOrdersTitle: 'My orders',
@@ -95,6 +95,22 @@
       ordersPerDay: 'Orders per day (last 14 days)',
       revenueByCat: 'Completed sales by category (RWF)',
       welcomeBack: (name) => `Welcome back, ${name}!`,
+      payStatus: {
+        paid: 'Paid',
+        manual_pending: 'Awaiting payment',
+        requested: 'Approve on your phone',
+        failed: 'Payment failed',
+      },
+      payManualTitle: 'How to pay',
+      payManualBody: (amount, phone, shopName, code) =>
+        `Send ${amount} by Mobile Money to ${phone} (${shopName}). Use your order code ${code} as the reference. The shop will confirm your order once the payment arrives.`,
+      payDialHint: 'MTN: dial *182# · Airtel: dial *500# to send money.',
+      payPromptedBody: (phone) =>
+        `A Mobile Money payment request was sent to ${phone}. Enter your PIN on your phone to approve it.`,
+      payPaidBody: 'Payment received — the shop is preparing your order.',
+      payFailedBody: 'The payment did not go through. You can pay the shop directly by Mobile Money instead.',
+      markPaid: 'Payment received',
+      checkingPayment: 'Checking payment…',
     },
     rw: {
       navHome: 'Shakisha', navOrders: 'Ibyo natumije', navDashboard: 'Amaduka yanjye', navAdmin: 'Ubuyobozi',
@@ -135,7 +151,7 @@
       deliveryMethod: 'Wifuza kubona ibyo watumije gute?', pickup: 'Kubifatira ku iduka', delivery: 'Kubinzanirwa',
       deliveryAddress: 'Aho bizanwa',
       placeOrder: 'Emeza itumiza', orderPlaced: 'Byoherejwe!',
-      orderPlacedBody: (code) => `Itumiza ryawe ${code} ryoherejwe ku iduka. Ubwishyu bufatirwa kuri Mobile Money, bugahabwa iduka iyo itumiza rirangiye. Rikurikirane muri “Ibyo natumije”.`,
+      orderPlacedBody: (code) => `Itumiza ryawe ${code} ryoherejwe ku iduka. Rikurikirane muri “Ibyo natumije”.`,
       viewMyOrders: 'Reba ibyo natumije', continueShopping: 'Komeza ushakishe',
       loginToOrder: 'Injira kugira ngo utumize',
       myOrdersTitle: 'Ibyo natumije',
@@ -174,6 +190,22 @@
       ordersPerDay: 'Ibyatumijwe ku munsi (iminsi 14 ishize)',
       revenueByCat: 'Ibyagurishijwe mu byiciro (RWF)',
       welcomeBack: (name) => `Murakaza neza, ${name}!`,
+      payStatus: {
+        paid: 'Byishyuwe',
+        manual_pending: 'Bitegereje kwishyurwa',
+        requested: 'Emeza kuri telefoni yawe',
+        failed: 'Kwishyura byanze',
+      },
+      payManualTitle: 'Uko wishyura',
+      payManualBody: (amount, phone, shopName, code) =>
+        `Ohereza ${amount} kuri Mobile Money ${phone} (${shopName}). Koresha kode y\u2019itumiza ${code} nk\u2019icyitonderwa. Iduka rizemeza itumiza ryawe rimaze kubona ubwishyu.`,
+      payDialHint: 'MTN: kanda *182# · Airtel: kanda *500# wohereze amafaranga.',
+      payPromptedBody: (phone) =>
+        `Ubusabe bwo kwishyura bwoherejwe kuri ${phone}. Andika umubare wawe w\u2019ibanga kuri telefoni wemeze.`,
+      payPaidBody: 'Ubwishyu bwakiriwe — iduka riri gutegura ibyo watumije.',
+      payFailedBody: 'Kwishyura ntibyagenze neza. Ushobora kwishyura iduka kuri Mobile Money yaryo.',
+      markPaid: 'Ubwishyu bwakiriwe',
+      checkingPayment: 'Turi kugenzura ubwishyu…',
     },
   };
 
@@ -304,6 +336,11 @@
       img.onerror = reject;
       img.src = url;
     });
+  }
+
+  // Installable app: register the service worker (works on Android, iOS, desktop).
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
   }
 
   window.ISOKO = {

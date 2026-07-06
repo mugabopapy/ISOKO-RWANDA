@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#057a55" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
   <title>iSoko Rwanda — My shops</title>
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -30,6 +33,11 @@
         <div class="field"><label id="fAddrLbl"></label><input type="text" id="fAddr" /></div>
       </div>
       <div class="field"><label id="fDescLbl"></label><textarea id="fDesc" rows="3"></textarea></div>
+      <div class="field">
+        <label id="fPhotoLbl"></label>
+        <input type="file" id="fPhoto" accept="image/*" />
+        <p class="q-sub" id="fPhotoHint" style="margin-top:6px"></p>
+      </div>
       <p class="q-sub" id="pickHint"></p>
       <div class="pick-map" id="pickMap"></div>
       <p class="notice ok hidden" id="pinOk"></p>
@@ -73,6 +81,8 @@
     $('fPhoneLbl').textContent = t('contactPhone');
     $('fAddrLbl').textContent = t('address');
     $('fDescLbl').textContent = t('description');
+    $('fPhotoLbl').textContent = '📷 ' + t('shopPhoto');
+    $('fPhotoHint').textContent = t('photoHint');
     $('pickHint').textContent = t('pickLocation');
     $('pinOk').textContent = '📍 ' + t('locationSet');
     $('cancelFormBtn').textContent = t('cancel');
@@ -143,8 +153,16 @@
         lng: picked.lng,
       };
       try {
-        if (editingShopId) await api('/api/shops/' + editingShopId, { method: 'PUT', body });
-        else await api('/api/shops', { method: 'POST', body });
+        let saved;
+        if (editingShopId) saved = await api('/api/shops/' + editingShopId, { method: 'PUT', body });
+        else saved = await api('/api/shops', { method: 'POST', body });
+        // Upload the shop photo chosen in the form, if any.
+        const photoFile = $('fPhoto').files[0];
+        if (photoFile) {
+          const data = await fileToDataUrl(photoFile);
+          await api('/api/shops/' + saved.shop.id + '/photo', { method: 'POST', body: { data } });
+          $('fPhoto').value = '';
+        }
         $('shopFormPanel').classList.add('hidden');
         await loadShops();
       } catch {
@@ -203,6 +221,7 @@
             <div class="field"><label>${t('unit')}</label><input type="text" id="pUnit" /></div>
           </div>
           <div class="field"><label>${t('description')}</label><input type="text" id="pDesc" /></div>
+          <div class="field"><label>📷 ${t('uploadPhoto')}</label><input type="file" id="pPhoto" accept="image/*" /></div>
           <p class="notice err hidden" id="prodErr">${t('errGeneric')}</p>
           <button class="btn btn-primary" id="addProdBtn">+ ${t('addProduct')}</button>
         </div>
@@ -254,7 +273,7 @@
       $('addProdBtn').onclick = async () => {
         $('prodErr').classList.add('hidden');
         try {
-          await api('/api/shops/' + shop.id + '/products', {
+          const created = await api('/api/shops/' + shop.id + '/products', {
             method: 'POST',
             body: {
               name: $('pName').value,
@@ -264,7 +283,12 @@
               description: $('pDesc').value,
             },
           });
-          ['pName', 'pPrice', 'pStock', 'pUnit', 'pDesc'].forEach((id) => ($(id).value = ''));
+          const photoFile = $('pPhoto').files[0];
+          if (photoFile) {
+            const data = await fileToDataUrl(photoFile);
+            await api('/api/products/' + created.product.id + '/photo', { method: 'POST', body: { data } });
+          }
+          ['pName', 'pPrice', 'pStock', 'pUnit', 'pDesc', 'pPhoto'].forEach((id) => ($(id).value = ''));
           loadProducts();
         } catch {
           $('prodErr').classList.remove('hidden');
@@ -290,10 +314,12 @@
             actions.push(`<button class="btn btn-primary btn-sm" data-status="completed">${t('complete')}</button>`);
             actions.push(`<button class="btn btn-ghost btn-sm" data-status="cancelled">${t('cancelOrder')}</button>`);
           }
+          const payStatus = o.payment_status || 'manual_pending';
+          const payPill = `<span class="status-pill ${payStatus === 'paid' ? 'status-completed' : 'status-pending'}">💰 ${t('payStatus')[payStatus] || payStatus}</span>`;
           card.innerHTML = `
             <div class="order-head">
               <span class="order-code">${esc(o.code)}</span>
-              <span class="status-pill status-${o.status}">${t('statusLabel')[o.status]}</span>
+              <span>${payPill} <span class="status-pill status-${o.status}">${t('statusLabel')[o.status]}</span></span>
             </div>
             <div class="order-items">
               ${o.items.map((it) => `${it.qty} × ${esc(it.name)} — ${money(it.price * it.qty)}`).join('<br>')}
@@ -307,7 +333,10 @@
               ${t('platformFee')}: −${money(o.platform_fee)} ·
               ${t('youReceive')}: <strong>${money(o.shop_receives)}</strong>
             </div>
-            <div class="order-actions">${actions.join('')}</div>`;
+            <div class="order-actions">
+              ${payStatus !== 'paid' && o.status !== 'cancelled' ? `<button class="btn btn-ghost btn-sm" data-paid>💰 ${t('markPaid')}</button>` : ''}
+              ${actions.join('')}
+            </div>`;
           card.querySelectorAll('button[data-status]').forEach((b) =>
             b.addEventListener('click', async () => {
               await api('/api/orders/' + o.id + '/status', { method: 'POST', body: { status: b.dataset.status } });
@@ -315,6 +344,12 @@
               loadProducts();
             })
           );
+          const paidBtn = card.querySelector('[data-paid]');
+          if (paidBtn)
+            paidBtn.addEventListener('click', async () => {
+              await api('/api/orders/' + o.id + '/paid', { method: 'POST' });
+              loadOrders();
+            });
           list.appendChild(card);
         }
       }

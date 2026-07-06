@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#057a55" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
   <title>iSoko Rwanda — Shop</title>
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -177,11 +180,7 @@
             },
           });
           clearCart();
-          panel.innerHTML = `
-            <h2>🎉 ${t('orderPlaced')}</h2>
-            <p class="intro">${t('orderPlacedBody', esc(data.order.code))}</p>
-            <a class="btn btn-primary btn-block" href="/orders.html">${t('viewMyOrders')}</a>
-            <a class="btn btn-ghost btn-block" style="margin-top:10px" href="/">${t('continueShopping')}</a>`;
+          renderOrderResult(panel, data.order);
           const fresh = await api('/api/shops/' + shopId);
           products = fresh.products;
           renderProducts();
@@ -191,6 +190,46 @@
           btn.disabled = false;
         }
       });
+    }
+
+    function renderOrderResult(panel, order) {
+      const links = `
+        <a class="btn btn-primary btn-block" href="/orders.html">${t('viewMyOrders')}</a>
+        <a class="btn btn-ghost btn-block" style="margin-top:10px" href="/">${t('continueShopping')}</a>`;
+
+      if (order.payment_status === 'requested') {
+        // Real MoMo prompt sent — poll until approved.
+        panel.innerHTML = `
+          <h2>📲 ${t('orderPlaced')}</h2>
+          <p class="intro">${t('payPromptedBody', esc(order.momo_phone))}</p>
+          <p class="notice ok" id="payState">${t('checkingPayment')}</p>${links}`;
+        let tries = 0;
+        const timer = setInterval(async () => {
+          tries++;
+          try {
+            const { payment_status } = await api('/api/orders/' + order.id + '/payment');
+            if (payment_status === 'paid') {
+              clearInterval(timer);
+              document.getElementById('payState').textContent = '✅ ' + t('payPaidBody');
+            } else if (payment_status === 'failed' || payment_status === 'manual_pending') {
+              clearInterval(timer);
+              document.getElementById('payState').textContent = t('payFailedBody');
+            }
+          } catch {}
+          if (tries >= 24) clearInterval(timer);
+        }, 5000);
+        return;
+      }
+
+      // Manual mode: clear instructions to pay the shop's own Mobile Money number.
+      panel.innerHTML = `
+        <h2>🎉 ${t('orderPlaced')}</h2>
+        <p class="intro">${t('orderPlacedBody', esc(order.code))}</p>
+        <div class="notice ok" style="line-height:1.6">
+          <strong>${t('payManualTitle')}:</strong><br>
+          ${t('payManualBody', money(order.subtotal), esc(shop.phone || order.shop_phone), esc(shop.name), esc(order.code))}<br>
+          <span style="opacity:.85">${t('payDialHint')}</span>
+        </div>${links}`;
     }
 
     (async () => {

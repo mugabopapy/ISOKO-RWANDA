@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#057a55" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
   <title>iSoko Rwanda — My dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
@@ -83,12 +86,19 @@
       for (const o of data.orders) {
         const card = document.createElement('div');
         card.className = 'order-card';
+        const payStatus = o.payment_status || 'manual_pending';
         card.innerHTML = `
           <div class="order-head">
             <span class="order-code">${esc(o.code)} <span style="font-weight:400;color:var(--ink-soft)">${t('orderFrom')}</span>
               <a href="/shop.html?id=${o.shopId}" style="color:var(--green-dark)">${esc(o.shop_name)}</a></span>
-            <span class="status-pill status-${o.status}">${t('statusLabel')[o.status]}</span>
+            <span>
+              <span class="status-pill ${payStatus === 'paid' ? 'status-completed' : 'status-pending'}">💰 ${t('payStatus')[payStatus] || payStatus}</span>
+              <span class="status-pill status-${o.status}">${t('statusLabel')[o.status]}</span>
+            </span>
           </div>
+          ${payStatus === 'manual_pending' && o.status !== 'cancelled'
+            ? `<div class="notice ok" style="line-height:1.55;margin:8px 0">${t('payManualBody', money(o.subtotal), esc(o.shop_phone), esc(o.shop_name), esc(o.code))}<br><span style="opacity:.85">${t('payDialHint')}</span></div>`
+            : ''}
           <div class="order-items">
             ${o.items.map((it) => `${it.qty} × ${esc(it.name)} — ${money(it.price * it.qty)}`).join('<br>')}
           </div>

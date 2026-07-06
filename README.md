@@ -10,6 +10,25 @@ Pharmacy 💊 · Doctors & clinics 🩺 · Food shop 🍎 · Furniture 🛋️ �
 
 At registration, providers pick what they offer from this list (doctor, educator, shop owner, landlord, coach, …) and customers pick which services they need — the home page then shows a personalized **"For you"** section.
 
+## Payments
+
+Two modes, switched automatically:
+
+1. **Manual Mobile Money (default, works today)** — at checkout the customer gets clear instructions: *"Send X RWF to the shop's Mobile Money number 07XX…, reference: order code IS-XXXX"* (with the `*182#` / `*500#` dial hints). The same instructions stay visible on the customer's dashboard until the shop owner presses **"Payment received"** on their order. No integration or approval needed — it uses the shop's existing MoMo number.
+2. **MTN MoMo API (automatic prompt)** — when you register as a merchant at [momodeveloper.mtn.com](https://momodeveloper.mtn.com) and set these environment variables, checkout sends a **real payment approval prompt to the customer's phone** and the order is marked paid automatically:
+
+| Env var | Value |
+| --- | --- |
+| `MOMO_SUBSCRIPTION_KEY` | Your Collections subscription key |
+| `MOMO_API_USER` / `MOMO_API_KEY` | API user UUID and key |
+| `MOMO_TARGET_ENV` | `sandbox` for testing, your production env (e.g. `mtnrwanda`) when live |
+| `MOMO_BASE_URL` | Production base URL from MTN (defaults to the sandbox) |
+| `MOMO_CURRENCY` | `RWF` in production (sandbox uses `EUR`) |
+
+## Install as an app (all phones)
+
+iSoko is an installable web app (PWA). Visitors on **Android (Chrome)** get an "Add to Home screen / Install app" prompt; on **iPhone (Safari)** they tap Share → "Add to Home Screen". It then opens full-screen with the iSoko icon like a native app, and static content is cached for weak connections. One codebase — works on every phone with a browser, no app store needed.
+
 ## Revenue model (built in)
 
 | Stream | Rule |
