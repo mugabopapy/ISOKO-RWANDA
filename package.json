@@ -1,7 +1,7 @@
 {
-  "name": "isoko-survey",
+  "name": "isoko-rwanda",
   "version": "1.0.0",
-  "description": "iSoko Rwanda market-validation survey — bilingual (English/Kinyarwanda) feedback collection from customers and shop owners.",
+  "description": "iSoko Rwanda — bilingual (English/Kinyarwanda) online marketplace platform where shop owners register their shop on a map with inventory and customers browse, order and pay.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

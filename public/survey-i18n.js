@@ -8,9 +8,9 @@ window.SURVEY = {
   ui: {
     en: {
       brand: 'iSoko Rwanda',
-      title: 'Help us build iSoko',
+      title: 'Help us improve iSoko',
       intro:
-        'iSoko is a new platform that will let you find real shops near you, see what they have in stock, order, and pay — all from your phone. Before we build it, we want to hear from you. This takes about 3 minutes.',
+        'iSoko is the online platform that lets you find real shops near you, see what they have in stock, order, and pay — all from your phone. Your feedback helps us make it better. This takes about 3 minutes.',
       chooseLanguage: 'Choose your language',
       whoAreYou: 'Which best describes you?',
       customer: 'I am a customer',
@@ -42,9 +42,9 @@ window.SURVEY = {
     },
     rw: {
       brand: 'iSoko Rwanda',
-      title: 'Dufashe kubaka iSoko',
+      title: 'Dufashe kunoza iSoko',
       intro:
-        'iSoko ni urubuga rushya ruzagufasha kubona amaduka ari hafi yawe, kureba ibicuruzwa afite n\u2019ibiciro byabyo, gutumiza no kwishyura — byose ukoresheje telefoni yawe. Mbere yo kuyubaka, twifuza kumva igitekerezo cyawe. Bifata iminota igera kuri 3.',
+        'iSoko ni urubuga rugufasha kubona amaduka ari hafi yawe, kureba ibicuruzwa afite n\u2019ibiciro byabyo, gutumiza no kwishyura — byose ukoresheje telefoni yawe. Igitekerezo cyawe kidufasha kuyinoza. Bifata iminota igera kuri 3.',
       chooseLanguage: 'Hitamo ururimi',
       whoAreYou: 'Ni ikihe kikuranga neza?',
       customer: 'Ndi umuguzi',

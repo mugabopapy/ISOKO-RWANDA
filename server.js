@@ -752,7 +752,7 @@ if (!db.users.some((u) => u.role === 'admin')) {
 }
 
 server.listen(PORT, () => {
-  console.log(`iSoko marketplace running at http://localhost:${PORT}`);
-  console.log(`Survey:                     http://localhost:${PORT}/survey.html`);
-  console.log(`Platform admin:             http://localhost:${PORT}/platform-admin.html`);
+  console.log(`iSoko Rwanda running at  http://localhost:${PORT}`);
+  console.log(`Feedback survey:         http://localhost:${PORT}/survey.html`);
+  console.log(`Platform admin:          http://localhost:${PORT}/platform-admin.html`);
 });

@@ -17,7 +17,7 @@
   const I18N = {
     en: {
       navHome: 'Browse', navOrders: 'My orders', navDashboard: 'My shops', navAdmin: 'Admin',
-      navLogin: 'Log in', navLogout: 'Log out', navSurvey: 'Survey',
+      navLogin: 'Log in', navLogout: 'Log out', navSurvey: 'Feedback',
       heroTitle: 'Everything near you, on one map',
       heroSub: 'Search real shops, pharmacies, rentals, gyms, coaches and tutors near you — see what they offer, order, and pay with Mobile Money without leaving home.',
       searchPlaceholder: 'Search shops, products, services…',
@@ -75,7 +75,7 @@
     },
     rw: {
       navHome: 'Shakisha', navOrders: 'Ibyo natumije', navDashboard: 'Amaduka yanjye', navAdmin: 'Ubuyobozi',
-      navLogin: 'Injira', navLogout: 'Sohoka', navSurvey: 'Ubushakashatsi',
+      navLogin: 'Injira', navLogout: 'Sohoka', navSurvey: 'Ibitekerezo',
       heroTitle: 'Ibiri hafi yawe byose, ku ikarita imwe',
       heroSub: 'Shakisha amaduka, farumasi, amazu akodeshwa, siporo, abatoza n\u2019abarimu bari hafi yawe — urebe ibyo batanga, utumize, wishyure na Mobile Money utavuye mu rugo.',
       searchPlaceholder: 'Shakisha amaduka, ibicuruzwa, serivisi…',

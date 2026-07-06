@@ -1,6 +1,6 @@
-# iSoko Rwanda — Marketplace Platform
+# iSoko Rwanda
 
-A web-based marketplace where **shop owners register their shop on a map with their inventory**, and **customers browse, order, and pay** — plus the original bilingual market-validation **survey**.
+iSoko Rwanda is an **online marketplace platform** where **shop owners register their shop on a map with their inventory**, and **customers browse, order, and pay**. A bilingual feedback survey is included as a secondary page for collecting user input.
 
 Everything is bilingual: **English ⇄ Kinyarwanda** toggle on every page.
 
@@ -25,7 +25,7 @@ The platform admin dashboard shows GMV, collected transaction-fee revenue, and m
 - **Owner dashboard** (`/dashboard.html`) — register shops (tap the map to pin the exact location), manage inventory (products, services, rentals, sessions — leave stock empty for unlimited/services), and process orders: confirm → complete (or cancel; stock is restored).
 - **Customer orders** (`/orders.html`) — track order status, cancel while pending.
 - **Platform admin** (`/platform-admin.html`) — totals, GMV, fee revenue, listing revenue, every shop with billing status, recent orders. Log in with the admin account.
-- **Survey** (`/survey.html`) — the bilingual customer/shop-owner survey, with its own admin at `/survey-admin.html` and CSV export.
+- **Feedback** (`/survey.html`) — bilingual customer/shop-owner feedback survey, with its own admin at `/survey-admin.html` and CSV export.
 
 ## Run it
 
@@ -35,8 +35,8 @@ Requires Node.js 18+. Zero dependencies — no `npm install` needed.
 npm start
 ```
 
-- Marketplace: http://localhost:3000
-- Survey: http://localhost:3000/survey.html
+- iSoko platform: http://localhost:3000
+- Feedback survey: http://localhost:3000/survey.html
 
 On first boot the server seeds a platform admin account (`admin@isoko.rw`) and prints its password. Configure with env vars:
 
@@ -75,7 +75,7 @@ Any Node host works (Render, Railway, Fly.io, a VPS). Persist the `data/` direct
 | GET | `/api/my/orders`, `/api/shops/:id/orders` | customer / owner | Track orders |
 | POST | `/api/orders/:id/status` | owner / customer | pending → confirmed → completed, or cancel (stock restored) |
 | GET | `/api/admin/overview` | admin | Platform totals, fee revenue, shops, recent orders |
-| POST | `/api/responses` + survey admin endpoints | public / `ADMIN_KEY` | Bilingual survey (unchanged) |
+| POST | `/api/responses` + feedback admin endpoints | public / `ADMIN_KEY` | Bilingual feedback survey |
 
 ## Storage
 
