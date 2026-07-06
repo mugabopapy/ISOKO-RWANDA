@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>iSoko Rwanda — My shops</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="market.css" />
+</head>
+<body class="market">
+  <header id="site-header"></header>
+
+  <div class="page">
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <h2 id="myShopsTitle" style="margin:0"></h2>
+        <button class="btn btn-primary btn-sm" id="addShopBtn"></button>
+      </div>
+      <div id="shopList" style="margin-top:16px"></div>
+    </div>
+
+    <div class="panel hidden" id="shopFormPanel">
+      <h2 id="formTitle"></h2>
+      <div class="form-grid two">
+        <div class="field"><label id="fNameLbl"></label><input type="text" id="fName" /></div>
+        <div class="field"><label id="fCatLbl"></label><select id="fCat"></select></div>
+        <div class="field"><label id="fPhoneLbl"></label><input type="tel" id="fPhone" /></div>
+        <div class="field"><label id="fAddrLbl"></label><input type="text" id="fAddr" /></div>
+      </div>
+      <div class="field"><label id="fDescLbl"></label><textarea id="fDesc" rows="3"></textarea></div>
+      <p class="q-sub" id="pickHint"></p>
+      <div class="pick-map" id="pickMap"></div>
+      <p class="notice ok hidden" id="pinOk"></p>
+      <p class="notice err hidden" id="formErr"></p>
+      <div class="nav-row">
+        <button class="btn btn-ghost" id="cancelFormBtn"></button>
+        <button class="btn btn-primary" id="saveShopBtn"></button>
+      </div>
+    </div>
+
+    <div id="shopDetail"></div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="common.js"></script>
+  <script>
+    const { t, api, catLabel, CATEGORIES, esc, money, renderHeader, fileToDataUrl, shopPhoto } = window.ISOKO;
+
+    /** Open a file picker, resize the chosen image, POST it to the given photo endpoint. */
+    function pickAndUpload(endpoint, onDone) {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = async () => {
+        if (!input.files[0]) return;
+        const data = await fileToDataUrl(input.files[0]);
+        await api(endpoint, { method: 'POST', body: { data } });
+        onDone();
+      };
+      input.click();
+    }
+    const KIGALI = [-1.9441, 30.0619];
+    const $ = (id) => document.getElementById(id);
+    let myShops = [];
+    let pickMap, pickMarker, picked = null, editingShopId = null;
+
+    $('myShopsTitle').textContent = t('myShops');
+    $('addShopBtn').textContent = '+ ' + t('addShop');
+    $('fNameLbl').textContent = t('shopName');
+    $('fCatLbl').textContent = t('category');
+    $('fPhoneLbl').textContent = t('contactPhone');
+    $('fAddrLbl').textContent = t('address');
+    $('fDescLbl').textContent = t('description');
+    $('pickHint').textContent = t('pickLocation');
+    $('pinOk').textContent = '📍 ' + t('locationSet');
+    $('cancelFormBtn').textContent = t('cancel');
+    $('saveShopBtn').textContent = t('saveShop');
+    $('formErr').textContent = t('errGeneric');
+
+    for (const id of Object.keys(CATEGORIES)) {
+      const o = document.createElement('option');
+      o.value = id;
+      o.textContent = catLabel(id);
+      $('fCat').appendChild(o);
+    }
+
+    function openForm(shop) {
+      editingShopId = shop ? shop.id : null;
+      $('formTitle').textContent = shop ? shop.name : t('addShop');
+      $('fName').value = shop ? shop.name : '';
+      $('fCat').value = shop ? shop.category : 'other';
+      $('fPhone').value = shop ? shop.phone : '';
+      $('fAddr').value = shop ? shop.address : '';
+      $('fDesc').value = shop ? shop.description : '';
+      picked = shop ? { lat: shop.lat, lng: shop.lng } : null;
+      $('pinOk').classList.toggle('hidden', !picked);
+      $('formErr').classList.add('hidden');
+      $('shopFormPanel').classList.remove('hidden');
+      $('shopFormPanel').scrollIntoView({ behavior: 'smooth' });
+
+      setTimeout(() => {
+        if (!pickMap) {
+          pickMap = L.map('pickMap').setView(picked ? [picked.lat, picked.lng] : KIGALI, 13);
+          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(pickMap);
+          pickMap.on('click', (e) => {
+            picked = { lat: e.latlng.lat, lng: e.latlng.lng };
+            if (pickMarker) pickMarker.setLatLng(e.latlng);
+            else pickMarker = L.marker(e.latlng).addTo(pickMap);
+            $('pinOk').classList.remove('hidden');
+          });
+          if (navigator.geolocation && !picked) {
+            navigator.geolocation.getCurrentPosition((pos) => pickMap.setView([pos.coords.latitude, pos.coords.longitude], 15), () => {}, { timeout: 5000 });
+          }
+        } else if (picked) {
+          pickMap.setView([picked.lat, picked.lng], 15);
+        }
+        if (picked) {
+          if (pickMarker) pickMarker.setLatLng([picked.lat, picked.lng]);
+          else pickMarker = L.marker([picked.lat, picked.lng]).addTo(pickMap);
+        }
+        pickMap.invalidateSize();
+      }, 60);
+    }
+
+    $('addShopBtn').onclick = () => openForm(null);
+    $('cancelFormBtn').onclick = () => $('shopFormPanel').classList.add('hidden');
+
+    $('saveShopBtn').onclick = async () => {
+      $('formErr').classList.add('hidden');
+      if (!$('fName').value.trim() || !picked) {
+        $('formErr').classList.remove('hidden');
+        return;
+      }
+      const body = {
+        name: $('fName').value,
+        category: $('fCat').value,
+        phone: $('fPhone').value,
+        address: $('fAddr').value,
+        description: $('fDesc').value,
+        lat: picked.lat,
+        lng: picked.lng,
+      };
+      try {
+        if (editingShopId) await api('/api/shops/' + editingShopId, { method: 'PUT', body });
+        else await api('/api/shops', { method: 'POST', body });
+        $('shopFormPanel').classList.add('hidden');
+        await loadShops();
+      } catch {
+        $('formErr').classList.remove('hidden');
+      }
+    };
+
+    function trialBanner(shop) {
+      const b = shop.billing;
+      const date = new Date(b.trial_ends_at).toLocaleDateString();
+      return b.free_trial
+        ? `<div class="trial-banner">🎁 ${t('freeTrialBanner', date)} ${t('feeAfterTrial', money(5000).replace(' RWF', ''))}</div>`
+        : '';
+    }
+
+    function renderShopList() {
+      const list = $('shopList');
+      if (!myShops.length) {
+        list.innerHTML = `<p class="empty-state">${t('noShops')}</p>`;
+        return;
+      }
+      list.innerHTML = '';
+      for (const s of myShops) {
+        const row = document.createElement('div');
+        row.className = 'item-row';
+        row.innerHTML = `
+          <img src="${esc(shopPhoto(s))}" style="width:64px;height:64px;object-fit:cover;border-radius:12px" alt="" />
+          <div class="item-info">
+            <div class="name">${esc(s.name)} <span class="sub">${esc(catLabel(s.category))}</span></div>
+            <div class="sub">${s.product_count} ${t('items')} · ${s.completed_orders} ${t('ordersDone')} ·
+              ${s.billing.free_trial ? '🎁 ' + t('trial') : t('paying')}</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" data-act="photo">📷 ${s.photo ? t('changePhoto') : t('uploadPhoto')}</button>
+          <button class="btn btn-ghost btn-sm" data-act="edit">${t('edit')}</button>
+          <button class="btn btn-primary btn-sm" data-act="manage">${t('inventory')} / ${t('shopOrders')}</button>`;
+        row.querySelector('[data-act=photo]').onclick = () =>
+          pickAndUpload('/api/shops/' + s.id + '/photo', loadShops);
+        row.querySelector('[data-act=edit]').onclick = () => openForm(s);
+        row.querySelector('[data-act=manage]').onclick = () => renderDetail(s);
+        list.appendChild(row);
+      }
+    }
+
+    async function renderDetail(shop) {
+      const detail = $('shopDetail');
+      detail.innerHTML = `
+        ${trialBanner(shop)}
+        <div class="panel">
+          <h2>${esc(shop.name)} — ${t('inventory')}</h2>
+          <div id="prodList"></div>
+          <h3>${t('addProduct')}</h3>
+          <div class="form-grid two">
+            <div class="field"><label>${t('productName')}</label><input type="text" id="pName" /></div>
+            <div class="field"><label>${t('price')}</label><input type="text" id="pPrice" inputmode="numeric" /></div>
+            <div class="field"><label>${t('stock')}</label><input type="text" id="pStock" inputmode="numeric" /></div>
+            <div class="field"><label>${t('unit')}</label><input type="text" id="pUnit" /></div>
+          </div>
+          <div class="field"><label>${t('description')}</label><input type="text" id="pDesc" /></div>
+          <p class="notice err hidden" id="prodErr">${t('errGeneric')}</p>
+          <button class="btn btn-primary" id="addProdBtn">+ ${t('addProduct')}</button>
+        </div>
+        <div class="panel">
+          <h2>${t('shopOrders')}</h2>
+          <div id="orderList"></div>
+        </div>`;
+      detail.scrollIntoView({ behavior: 'smooth' });
+
+      async function loadProducts() {
+        const data = await api('/api/shops/' + shop.id);
+        const list = $('prodList');
+        if (!data.products.length) {
+          list.innerHTML = `<p class="empty-state">${t('noProducts')}</p>`;
+          return;
+        }
+        list.innerHTML = '';
+        for (const p of data.products) {
+          const row = document.createElement('div');
+          row.className = 'item-row';
+          row.innerHTML = `
+            ${p.photo ? `<img src="${esc(p.photo)}" style="width:52px;height:52px;object-fit:cover;border-radius:10px" alt="" />` : ''}
+            <div class="item-info">
+              <div class="name">${esc(p.name)}${p.unit ? ` <span class="sub">/ ${esc(p.unit)}</span>` : ''}</div>
+              <div class="sub">${p.stock === null ? t('unlimited') : t('inStock', p.stock)} ${esc(p.description || '')}</div>
+            </div>
+            <span class="price-tag">${money(p.price)}</span>
+            <button class="btn btn-ghost btn-sm" data-act="photo">📷</button>
+            <button class="btn btn-ghost btn-sm" data-act="edit">${t('edit')}</button>
+            <button class="btn btn-ghost btn-sm" data-act="del">${t('del')}</button>`;
+          row.querySelector('[data-act=photo]').onclick = () =>
+            pickAndUpload('/api/products/' + p.id + '/photo', loadProducts);
+          row.querySelector('[data-act=del]').onclick = async () => {
+            await api('/api/products/' + p.id, { method: 'DELETE' });
+            loadProducts();
+          };
+          row.querySelector('[data-act=edit]').onclick = () => {
+            const name = prompt(t('productName'), p.name);
+            if (name === null) return;
+            const price = prompt(t('price'), p.price);
+            if (price === null) return;
+            const stock = prompt(t('stock'), p.stock === null ? '' : p.stock);
+            api('/api/products/' + p.id, { method: 'PUT', body: { name, price, stock } }).then(loadProducts);
+          };
+          list.appendChild(row);
+        }
+      }
+
+      $('addProdBtn').onclick = async () => {
+        $('prodErr').classList.add('hidden');
+        try {
+          await api('/api/shops/' + shop.id + '/products', {
+            method: 'POST',
+            body: {
+              name: $('pName').value,
+              price: $('pPrice').value,
+              stock: $('pStock').value === '' ? null : $('pStock').value,
+              unit: $('pUnit').value,
+              description: $('pDesc').value,
+            },
+          });
+          ['pName', 'pPrice', 'pStock', 'pUnit', 'pDesc'].forEach((id) => ($(id).value = ''));
+          loadProducts();
+        } catch {
+          $('prodErr').classList.remove('hidden');
+        }
+      };
+
+      async function loadOrders() {
+        const data = await api('/api/shops/' + shop.id + '/orders');
+        const list = $('orderList');
+        if (!data.orders.length) {
+          list.innerHTML = `<p class="empty-state">${t('noOrders')}</p>`;
+          return;
+        }
+        list.innerHTML = '';
+        for (const o of data.orders) {
+          const card = document.createElement('div');
+          card.className = 'order-card';
+          const actions = [];
+          if (o.status === 'pending') {
+            actions.push(`<button class="btn btn-primary btn-sm" data-status="confirmed">${t('confirm')}</button>`);
+            actions.push(`<button class="btn btn-ghost btn-sm" data-status="cancelled">${t('cancelOrder')}</button>`);
+          } else if (o.status === 'confirmed') {
+            actions.push(`<button class="btn btn-primary btn-sm" data-status="completed">${t('complete')}</button>`);
+            actions.push(`<button class="btn btn-ghost btn-sm" data-status="cancelled">${t('cancelOrder')}</button>`);
+          }
+          card.innerHTML = `
+            <div class="order-head">
+              <span class="order-code">${esc(o.code)}</span>
+              <span class="status-pill status-${o.status}">${t('statusLabel')[o.status]}</span>
+            </div>
+            <div class="order-items">
+              ${o.items.map((it) => `${it.qty} × ${esc(it.name)} — ${money(it.price * it.qty)}`).join('<br>')}
+            </div>
+            <div class="sub" style="font-size:13.5px;color:var(--ink-soft)">
+              👤 ${esc(o.customer_name)} · 📞 ${esc(o.customer_phone)} ·
+              ${o.delivery_method === 'delivery' ? '🛵 ' + esc(o.delivery_address) : '🏪 ' + t('pickup')}
+            </div>
+            <div class="order-fee-note">
+              ${t('total')}: <strong>${money(o.subtotal)}</strong> ·
+              ${t('platformFee')}: −${money(o.platform_fee)} ·
+              ${t('youReceive')}: <strong>${money(o.shop_receives)}</strong>
+            </div>
+            <div class="order-actions">${actions.join('')}</div>`;
+          card.querySelectorAll('button[data-status]').forEach((b) =>
+            b.addEventListener('click', async () => {
+              await api('/api/orders/' + o.id + '/status', { method: 'POST', body: { status: b.dataset.status } });
+              loadOrders();
+              loadProducts();
+            })
+          );
+          list.appendChild(card);
+        }
+      }
+
+      loadProducts();
+      loadOrders();
+    }
+
+    async function loadShops() {
+      const data = await api('/api/my/shops');
+      myShops = data.shops;
+      renderShopList();
+    }
+
+    (async () => {
+      const user = await renderHeader('dashboard');
+      if (!user) {
+        location.href = '/auth.html?next=' + encodeURIComponent('/dashboard.html');
+        return;
+      }
+      await loadShops();
+    })();
+  </script>
+</body>
+</html>
