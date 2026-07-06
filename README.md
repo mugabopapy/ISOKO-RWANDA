@@ -56,9 +56,24 @@ node scripts/seed-demo.js
 
 Seeds 10 shops across Kigali (one per category) with realistic inventory. Demo owner logins: `alice@demo.rw` … `olivier@demo.rw`, password `demo1234`.
 
-### Deploy
+## Put it online (no coding tools needed)
 
-Any Node host works (Render, Railway, Fly.io, a VPS). Persist the `data/` directory (volume) so users, shops and orders survive restarts. Set `ADMIN_PASSWORD` and `ADMIN_KEY`.
+You do not need VS Code or any programming tools — only a web browser. The easiest way is Render (free plan available):
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/mugabopapy/ISOKO-RWANDA)
+
+1. Click the button above (works on a phone too).
+2. Sign up on Render free of charge — choosing **"Sign in with GitHub"** is easiest.
+3. Render reads this repository's `render.yaml` automatically. It will ask you to type an **ADMIN_PASSWORD** — choose a strong password; this is how you will log in as the platform admin.
+4. Click **Apply / Deploy**. After 1–2 minutes your platform is live at an address like `https://isoko-rwanda.onrender.com`.
+5. Open that address — that is your live iSoko. Share this link with shop owners and customers.
+6. To manage the platform, open `/auth.html` on your live site and log in with `admin@isoko.rw` and the password you chose, then open **Admin** in the menu.
+
+The deployment starts with 10 demo shops so the map looks alive. To launch clean, set the `SEED_DEMO` environment variable to `false` in Render before deploying (or delete the demo shops from the admin later).
+
+**Important (free plan limits):** on Render's free plan the app falls asleep after 15 minutes without visitors (the first visit after that takes ~1 minute to wake up), and stored data can be lost when the service restarts. When you have real users, upgrade the service ($7/month) and attach a **persistent disk** mounted at `/opt/render/project/src/data` so shops and orders are stored permanently.
+
+Any other Node.js host also works (Railway, Fly.io, a VPS — a `Dockerfile` is included). Persist the `data/` directory and set `ADMIN_PASSWORD` and `ADMIN_KEY`.
 
 ## API overview
 

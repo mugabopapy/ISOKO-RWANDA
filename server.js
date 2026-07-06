@@ -755,4 +755,14 @@ server.listen(PORT, () => {
   console.log(`iSoko Rwanda running at  http://localhost:${PORT}`);
   console.log(`Feedback survey:         http://localhost:${PORT}/survey.html`);
   console.log(`Platform admin:          http://localhost:${PORT}/platform-admin.html`);
+
+  // Optionally fill an empty platform with demo shops (SEED_DEMO=true),
+  // so a fresh deployment has a living map right away.
+  if (String(process.env.SEED_DEMO).toLowerCase() === 'true' && db.shops.length === 0) {
+    const { spawn } = require('node:child_process');
+    const child = spawn(process.execPath, [path.join(__dirname, 'scripts', 'seed-demo.js'), `http://localhost:${PORT}`], {
+      stdio: 'inherit',
+    });
+    child.on('exit', (code) => console.log(code === 0 ? 'Demo shops seeded.' : 'Demo seeding failed (code ' + code + ').'));
+  }
 });
