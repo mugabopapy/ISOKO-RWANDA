@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>iSoko Rwanda — Platform admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="market.css" />
+</head>
+<body class="market">
+  <header id="site-header"></header>
+
+  <div class="page">
+    <h1 id="title" style="font-family:Sora;margin:6px 0 4px"></h1>
+    <div class="stat-grid" id="stats"></div>
+
+    <div class="two-col" style="margin-bottom:20px">
+      <div class="panel" style="margin-bottom:0">
+        <h2 id="chartDaysTitle"></h2>
+        <div id="daysChart" style="display:flex;align-items:flex-end;gap:5px;height:150px;padding-top:10px"></div>
+      </div>
+      <div class="panel" style="margin-bottom:0">
+        <h2 id="chartCatTitle"></h2>
+        <div id="catChart"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 id="shopsTitle"></h2>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Shop</th><th id="thOwner"></th><th>Category</th><th>Items</th><th>Billing</th><th>Created</th></tr></thead>
+          <tbody id="shopRows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 id="ordersTitle"></h2>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Code</th><th>Shop</th><th>Customer</th><th>Total</th><th>Fee</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody id="orderRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="common.js"></script>
+  <script>
+    const { t, api, esc, money, catLabel, renderHeader } = window.ISOKO;
+
+    (async () => {
+      document.getElementById('title').textContent = t('adminTitle');
+      document.getElementById('shopsTitle').textContent = t('adminShops');
+      document.getElementById('ordersTitle').textContent = t('adminRecent');
+      document.getElementById('thOwner').textContent = t('owner');
+
+      const user = await renderHeader('admin');
+      if (!user || user.role !== 'admin') {
+        location.href = '/auth.html?next=' + encodeURIComponent('/platform-admin.html');
+        return;
+      }
+      const data = await api('/api/admin/overview');
+      const s = data.totals;
+      const stat = (num, lbl) => `<div class="stat"><div class="num">${num}</div><div class="lbl">${lbl}</div></div>`;
+      document.getElementById('stats').innerHTML =
+        stat(s.users, t('statUsers')) +
+        stat(s.shops, t('statShops')) +
+        stat(s.orders, t('statOrders')) +
+        stat(s.completed_orders, t('statCompleted')) +
+        stat(s.gmv.toLocaleString(), t('statGmv')) +
+        stat(s.fee_revenue.toLocaleString(), t('statFees')) +
+        stat(s.listing_revenue_monthly.toLocaleString(), t('statListing')) +
+        stat(s.shops_in_trial, t('statTrial'));
+
+      // Orders-per-day bar chart
+      document.getElementById('chartDaysTitle').textContent = t('ordersPerDay');
+      const days = data.orders_by_day || [];
+      const maxOrders = Math.max(...days.map((d) => d.orders), 1);
+      document.getElementById('daysChart').innerHTML = days
+        .map(
+          (d) => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0">
+            <span style="font:600 11px Inter;color:var(--ink-soft)">${d.orders || ''}</span>
+            <div style="width:100%;height:${Math.max((d.orders / maxOrders) * 100, 2)}px;background:linear-gradient(180deg,var(--green),var(--green-dark));border-radius:6px 6px 0 0"></div>
+            <span style="font:500 10px Inter;color:var(--ink-soft)">${d.date.slice(8)}</span>
+          </div>`
+        )
+        .join('');
+
+      // Revenue-by-category bars
+      document.getElementById('chartCatTitle').textContent = t('revenueByCat');
+      const cats = Object.entries(data.revenue_by_category || {}).sort((a, b) => b[1] - a[1]);
+      const maxRev = Math.max(...cats.map(([, v]) => v), 1);
+      document.getElementById('catChart').innerHTML = cats.length
+        ? cats
+            .map(
+              ([cat, v]) => `<div style="display:grid;grid-template-columns:minmax(110px,1fr) 2fr auto;gap:8px;align-items:center;margin-bottom:8px;font-size:13.5px">
+                <span>${esc(catLabel(cat))}</span>
+                <div style="background:var(--line);border-radius:999px;height:12px;overflow:hidden">
+                  <div style="width:${(v / maxRev) * 100}%;height:100%;background:linear-gradient(90deg,var(--green),var(--yellow));border-radius:999px"></div>
+                </div>
+                <strong>${v.toLocaleString()}</strong>
+              </div>`
+            )
+            .join('')
+        : '<p class="empty-state">—</p>';
+
+      document.getElementById('shopRows').innerHTML = data.shops
+        .map(
+          (x) => `<tr>
+            <td><a href="/shop.html?id=${x.id}" style="color:var(--green-dark);font-weight:600">${esc(x.name)}</a></td>
+            <td>${esc(x.owner_name)}<br><span style="color:var(--ink-soft)">${esc(x.owner_email)}</span></td>
+            <td>${esc(catLabel(x.category))}</td>
+            <td>${x.product_count}</td>
+            <td>${x.billing.free_trial ? '🎁 ' + t('trial') : money(x.billing.monthly_fee) + '/mo'}</td>
+            <td>${esc(x.created_at.slice(0, 10))}</td>
+          </tr>`
+        )
+        .join('');
+
+      document.getElementById('orderRows').innerHTML = data.recent_orders
+        .map(
+          (o) => `<tr>
+            <td>${esc(o.code)}</td>
+            <td>${esc(o.shop_name)}</td>
+            <td>${esc(o.customer_name)}</td>
+            <td>${money(o.subtotal)}</td>
+            <td>${money(o.platform_fee)}</td>
+            <td><span class="status-pill status-${o.status}">${t('statusLabel')[o.status]}</span></td>
+            <td>${esc(o.created_at.slice(0, 16).replace('T', ' '))}</td>
+          </tr>`
+        )
+        .join('');
+    })();
+  </script>
+</body>
+</html>

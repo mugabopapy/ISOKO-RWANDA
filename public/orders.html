@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>iSoko Rwanda — My dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="market.css" />
+</head>
+<body class="market">
+  <header id="site-header"></header>
+
+  <div class="page" style="max-width:860px">
+    <h1 id="welcome" style="font-family:Sora;margin:6px 0 14px"></h1>
+    <div class="stat-grid" id="stats"></div>
+
+    <div class="panel">
+      <h2 id="profileTitle"></h2>
+      <div class="form-grid two">
+        <div class="field"><label id="pNameLbl"></label><input type="text" id="pName" /></div>
+        <div class="field"><label id="pPhoneLbl"></label><input type="tel" id="pPhone" /></div>
+      </div>
+      <div class="field">
+        <label id="pInterestsLbl"></label>
+        <div class="chips" id="interestChips" style="margin-bottom:6px"></div>
+      </div>
+      <p class="notice ok hidden" id="savedOk"></p>
+      <button class="btn btn-primary btn-sm" id="saveBtn"></button>
+    </div>
+
+    <div class="panel">
+      <h2 id="ordersTitle"></h2>
+      <div id="orderList"></div>
+    </div>
+  </div>
+
+  <script src="common.js"></script>
+  <script>
+    const { t, api, esc, money, renderHeader, CATEGORIES, lang } = window.ISOKO;
+    const $ = (id) => document.getElementById(id);
+    let me = null;
+    let interests = [];
+
+    function renderInterestChips() {
+      const box = $('interestChips');
+      box.innerHTML = '';
+      for (const [id, c] of Object.entries(CATEGORIES)) {
+        if (id === 'other') continue;
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip' + (interests.includes(id) ? ' active' : '');
+        b.textContent = `${c.emoji} ${c[lang()]}`;
+        b.onclick = () => {
+          interests = interests.includes(id) ? interests.filter((x) => x !== id) : [...interests, id];
+          renderInterestChips();
+        };
+        box.appendChild(b);
+      }
+    }
+
+    function renderStats(orders) {
+      const completed = orders.filter((o) => o.status === 'completed');
+      const spent = completed.reduce((s, o) => s + o.subtotal, 0);
+      const shopsUsed = new Set(orders.map((o) => o.shopId)).size;
+      const stat = (num, lbl) => `<div class="stat"><div class="num">${num}</div><div class="lbl">${lbl}</div></div>`;
+      $('stats').innerHTML =
+        stat(orders.length, t('statOrdersMade')) +
+        stat(completed.length, t('statCompletedOrders')) +
+        stat(spent.toLocaleString(), t('statSpent')) +
+        stat(shopsUsed, t('statShopsUsed'));
+    }
+
+    async function loadOrders() {
+      const data = await api('/api/my/orders');
+      renderStats(data.orders);
+      const list = $('orderList');
+      if (!data.orders.length) {
+        list.innerHTML = `<p class="empty-state">${t('noOrders')}</p>`;
+        return;
+      }
+      list.innerHTML = '';
+      for (const o of data.orders) {
+        const card = document.createElement('div');
+        card.className = 'order-card';
+        card.innerHTML = `
+          <div class="order-head">
+            <span class="order-code">${esc(o.code)} <span style="font-weight:400;color:var(--ink-soft)">${t('orderFrom')}</span>
+              <a href="/shop.html?id=${o.shopId}" style="color:var(--green-dark)">${esc(o.shop_name)}</a></span>
+            <span class="status-pill status-${o.status}">${t('statusLabel')[o.status]}</span>
+          </div>
+          <div class="order-items">
+            ${o.items.map((it) => `${it.qty} × ${esc(it.name)} — ${money(it.price * it.qty)}`).join('<br>')}
+          </div>
+          <div class="order-fee-note">
+            ${t('total')}: <strong>${money(o.subtotal)}</strong> ·
+            ${o.delivery_method === 'delivery' ? '🛵 ' + esc(o.delivery_address) : '🏪 ' + t('pickup')} ·
+            📞 ${esc(o.shop_phone)}
+          </div>
+          <div class="order-actions">
+            ${o.status === 'pending' ? `<button class="btn btn-ghost btn-sm" data-cancel>${t('cancelOrder')}</button>` : ''}
+          </div>`;
+        const cancelBtn = card.querySelector('[data-cancel]');
+        if (cancelBtn)
+          cancelBtn.addEventListener('click', async () => {
+            await api('/api/orders/' + o.id + '/status', { method: 'POST', body: { status: 'cancelled' } });
+            loadOrders();
+          });
+        list.appendChild(card);
+      }
+    }
+
+    (async () => {
+      $('profileTitle').textContent = t('profileTitle');
+      $('ordersTitle').textContent = t('ordersTitle');
+      $('pNameLbl').textContent = t('fullName');
+      $('pPhoneLbl').textContent = t('phone');
+      $('pInterestsLbl').textContent = t('interestsLabel');
+      $('saveBtn').textContent = t('saveProfile');
+      $('savedOk').textContent = t('profileSaved');
+
+      me = await renderHeader('orders');
+      if (!me) {
+        location.href = '/auth.html?next=' + encodeURIComponent('/orders.html');
+        return;
+      }
+      $('welcome').textContent = t('welcomeBack', me.name.split(' ')[0]);
+      $('pName').value = me.name;
+      $('pPhone').value = me.phone || '';
+      interests = me.interests || [];
+      renderInterestChips();
+
+      $('saveBtn').addEventListener('click', async () => {
+        await api('/api/me', { method: 'PUT', body: { name: $('pName').value, phone: $('pPhone').value, interests } });
+        $('savedOk').classList.remove('hidden');
+        setTimeout(() => $('savedOk').classList.add('hidden'), 2500);
+      });
+
+      loadOrders();
+    })();
+  </script>
+</body>
+</html>
