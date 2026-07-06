@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>iSoko Rwanda — Shops, services & rentals near you</title>
+  <meta name="description" content="Find shops, pharmacies, rentals, gyms, coaches and tutors near you in Rwanda. Browse real inventory, order and pay with Mobile Money." />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="market.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛍️</text></svg>" />
+</head>
+<body class="market">
+  <header id="site-header"></header>
+
+  <div class="page">
+    <section class="hero">
+      <h1 id="heroTitle"></h1>
+      <p id="heroSub"></p>
+      <a class="cta-note" href="/auth.html?role=owner" id="ownerCta"></a>
+    </section>
+
+    <div class="search-row">
+      <input type="text" id="searchInput" />
+      <div class="view-toggle">
+        <button type="button" id="listBtn" class="active"></button>
+        <button type="button" id="mapBtn"></button>
+      </div>
+    </div>
+
+    <div class="chips" id="chips"></div>
+
+    <div id="map" class="hidden"></div>
+    <p class="count-label" id="countLabel"></p>
+    <div class="shop-grid" id="shopGrid"></div>
+    <p class="empty-state hidden" id="emptyState"></p>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="common.js"></script>
+  <script>
+    const { t, api, catLabel, CATEGORIES, esc, renderHeader } = window.ISOKO;
+    const KIGALI = [-1.9441, 30.0619];
+    let shops = [];
+    let activeCategory = '';
+    let query = '';
+    let map, markersLayer;
+    let userPos = null;
+
+    document.getElementById('heroTitle').textContent = t('heroTitle');
+    document.getElementById('heroSub').textContent = t('heroSub');
+    document.getElementById('ownerCta').textContent = t('registerShopCta');
+    document.getElementById('searchInput').placeholder = t('searchPlaceholder');
+    document.getElementById('listBtn').textContent = t('mapListToggleList');
+    document.getElementById('mapBtn').textContent = t('mapListToggleMap');
+
+    function renderChips() {
+      const chips = document.getElementById('chips');
+      chips.innerHTML = '';
+      const all = document.createElement('button');
+      all.className = 'chip' + (activeCategory === '' ? ' active' : '');
+      all.textContent = t('allCategories');
+      all.onclick = () => { activeCategory = ''; renderChips(); load(); };
+      chips.appendChild(all);
+      for (const id of Object.keys(CATEGORIES)) {
+        const b = document.createElement('button');
+        b.className = 'chip' + (activeCategory === id ? ' active' : '');
+        b.textContent = catLabel(id);
+        b.onclick = () => { activeCategory = id; renderChips(); load(); };
+        chips.appendChild(b);
+      }
+    }
+
+    function distanceKm(a, b) {
+      const R = 6371, dLat = (b[0] - a[0]) * Math.PI / 180, dLng = (b[1] - a[1]) * Math.PI / 180;
+      const x = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * Math.PI / 180) * Math.cos(b[0] * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+    }
+
+    function renderList() {
+      const grid = document.getElementById('shopGrid');
+      const empty = document.getElementById('emptyState');
+      document.getElementById('countLabel').textContent = t('shopsFound', shops.length);
+      grid.innerHTML = '';
+      empty.classList.toggle('hidden', shops.length > 0);
+      empty.textContent = t('noShops');
+      for (const s of shops) {
+        const dist = userPos ? t('distanceAway', distanceKm(userPos, [s.lat, s.lng]).toFixed(1)) : '';
+        const card = document.createElement('div');
+        card.className = 'shop-card';
+        card.innerHTML = `
+          <span class="cat-tag">${esc(catLabel(s.category))}</span>
+          <h3>${esc(s.name)}</h3>
+          <p class="desc">${esc(s.description || '')}</p>
+          <p class="meta">${s.product_count} ${t('items')} · ${s.completed_orders} ${t('ordersDone')}${dist ? ' · ' + dist : ''}</p>
+          <p class="meta">${esc(s.address || '')}</p>
+          <a class="btn btn-primary btn-sm" href="/shop.html?id=${s.id}">${t('viewShop')}</a>`;
+        grid.appendChild(card);
+      }
+    }
+
+    function ensureMap() {
+      if (map) return;
+      map = L.map('map').setView(KIGALI, 13);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(map);
+      markersLayer = L.layerGroup().addTo(map);
+    }
+
+    function renderMap() {
+      ensureMap();
+      markersLayer.clearLayers();
+      const bounds = [];
+      for (const s of shops) {
+        const m = L.marker([s.lat, s.lng]).addTo(markersLayer);
+        m.bindPopup(`<h4>${esc(s.name)}</h4>${esc(catLabel(s.category))}<br>
+          ${s.product_count} ${t('items')}<br>
+          <a href="/shop.html?id=${s.id}">${t('viewShop')} →</a>`);
+        bounds.push([s.lat, s.lng]);
+      }
+      if (bounds.length) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+      setTimeout(() => map.invalidateSize(), 60);
+    }
+
+    async function load() {
+      const params = new URLSearchParams();
+      if (activeCategory) params.set('category', activeCategory);
+      if (query) params.set('q', query);
+      const data = await api('/api/shops?' + params.toString());
+      shops = data.shops;
+      if (userPos) shops.sort((a, b) => distanceKm(userPos, [a.lat, a.lng]) - distanceKm(userPos, [b.lat, b.lng]));
+      renderList();
+      if (!document.getElementById('map').classList.contains('hidden')) renderMap();
+    }
+
+    let debounce;
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => { query = e.target.value.trim(); load(); }, 300);
+    });
+
+    document.getElementById('listBtn').addEventListener('click', () => {
+      document.getElementById('map').classList.add('hidden');
+      document.getElementById('shopGrid').classList.remove('hidden');
+      document.getElementById('listBtn').classList.add('active');
+      document.getElementById('mapBtn').classList.remove('active');
+    });
+    document.getElementById('mapBtn').addEventListener('click', () => {
+      document.getElementById('map').classList.remove('hidden');
+      document.getElementById('shopGrid').classList.add('hidden');
+      document.getElementById('mapBtn').classList.add('active');
+      document.getElementById('listBtn').classList.remove('active');
+      renderMap();
+    });
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => { userPos = [pos.coords.latitude, pos.coords.longitude]; load(); },
+        () => {},
+        { timeout: 5000 }
+      );
+    }
+
+    renderHeader('home');
+    renderChips();
+    load();
+  </script>
+</body>
+</html>

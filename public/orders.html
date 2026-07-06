@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>iSoko Rwanda — My orders</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="market.css" />
+</head>
+<body class="market">
+  <header id="site-header"></header>
+
+  <div class="page" style="max-width:760px">
+    <div class="panel">
+      <h2 id="title"></h2>
+      <div id="orderList"></div>
+    </div>
+  </div>
+
+  <script src="common.js"></script>
+  <script>
+    const { t, api, esc, money, renderHeader } = window.ISOKO;
+
+    async function load() {
+      const data = await api('/api/my/orders');
+      const list = document.getElementById('orderList');
+      if (!data.orders.length) {
+        list.innerHTML = `<p class="empty-state">${t('noOrders')}</p>`;
+        return;
+      }
+      list.innerHTML = '';
+      for (const o of data.orders) {
+        const card = document.createElement('div');
+        card.className = 'order-card';
+        card.innerHTML = `
+          <div class="order-head">
+            <span class="order-code">${esc(o.code)} <span style="font-weight:400;color:var(--ink-soft)">${t('orderFrom')}</span>
+              <a href="/shop.html?id=${o.shopId}" style="color:var(--green-dark)">${esc(o.shop_name)}</a></span>
+            <span class="status-pill status-${o.status}">${t('statusLabel')[o.status]}</span>
+          </div>
+          <div class="order-items">
+            ${o.items.map((it) => `${it.qty} × ${esc(it.name)} — ${money(it.price * it.qty)}`).join('<br>')}
+          </div>
+          <div class="order-fee-note">
+            ${t('total')}: <strong>${money(o.subtotal)}</strong> ·
+            ${o.delivery_method === 'delivery' ? '🛵 ' + esc(o.delivery_address) : '🏪 ' + t('pickup')} ·
+            📞 ${esc(o.shop_phone)}
+          </div>
+          <div class="order-actions">
+            ${o.status === 'pending' ? `<button class="btn btn-ghost btn-sm" data-cancel>${t('cancelOrder')}</button>` : ''}
+          </div>`;
+        const cancelBtn = card.querySelector('[data-cancel]');
+        if (cancelBtn)
+          cancelBtn.addEventListener('click', async () => {
+            await api('/api/orders/' + o.id + '/status', { method: 'POST', body: { status: 'cancelled' } });
+            load();
+          });
+        list.appendChild(card);
+      }
+    }
+
+    (async () => {
+      document.getElementById('title').textContent = t('myOrdersTitle');
+      const user = await renderHeader('orders');
+      if (!user) {
+        location.href = '/auth.html?next=' + encodeURIComponent('/orders.html');
+        return;
+      }
+      load();
+    })();
+  </script>
+</body>
+</html>
