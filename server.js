@@ -50,6 +50,80 @@ const CATEGORIES = [
 const MAX_PHOTO_BYTES = 2 * 1024 * 1024; // decoded photo size limit
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 
+// ---- Mobile Money (MTN MoMo Collections API) --------------------------------
+// When MOMO_* env vars are set, checkout sends a real payment prompt to the
+// customer's phone. Without them, the platform uses "manual" mode: the customer
+// is shown the shop's Mobile Money number + order code and the owner confirms
+// receipt. Get credentials at https://momodeveloper.mtn.com
+const MOMO = {
+  key: process.env.MOMO_SUBSCRIPTION_KEY || '',
+  user: process.env.MOMO_API_USER || '',
+  secret: process.env.MOMO_API_KEY || '',
+  env: process.env.MOMO_TARGET_ENV || 'sandbox',
+  currency: process.env.MOMO_CURRENCY || ((process.env.MOMO_TARGET_ENV || 'sandbox') === 'sandbox' ? 'EUR' : 'RWF'),
+  base: process.env.MOMO_BASE_URL || 'https://sandbox.momodeveloper.mtn.com',
+};
+const momoConfigured = () => Boolean(MOMO.key && MOMO.user && MOMO.secret);
+
+let momoToken = { value: '', expires: 0 };
+async function momoGetToken() {
+  if (momoToken.value && Date.now() < momoToken.expires - 60000) return momoToken.value;
+  const res = await fetch(MOMO.base + '/collection/token/', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Basic ' + Buffer.from(`${MOMO.user}:${MOMO.secret}`).toString('base64'),
+      'Ocp-Apim-Subscription-Key': MOMO.key,
+    },
+  });
+  if (!res.ok) throw new Error('momo_token_failed_' + res.status);
+  const data = await res.json();
+  momoToken = { value: data.access_token, expires: Date.now() + (data.expires_in || 3600) * 1000 };
+  return momoToken.value;
+}
+
+function momoMsisdn(phone) {
+  const digits = String(phone).replace(/\D/g, '');
+  return digits.startsWith('0') ? '250' + digits.slice(1) : digits;
+}
+
+async function momoRequestToPay(order) {
+  const token = await momoGetToken();
+  const refId = crypto.randomUUID();
+  const res = await fetch(MOMO.base + '/collection/v1_0/requesttopay', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + token,
+      'X-Reference-Id': refId,
+      'X-Target-Environment': MOMO.env,
+      'Ocp-Apim-Subscription-Key': MOMO.key,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      amount: String(order.subtotal),
+      currency: MOMO.currency,
+      externalId: order.code,
+      payer: { partyIdType: 'MSISDN', partyId: momoMsisdn(order.momo_phone) },
+      payerMessage: 'iSoko order ' + order.code,
+      payeeNote: 'iSoko order ' + order.code,
+    }),
+  });
+  if (res.status !== 202) throw new Error('momo_request_failed_' + res.status);
+  return refId;
+}
+
+async function momoPaymentStatus(refId) {
+  const token = await momoGetToken();
+  const res = await fetch(`${MOMO.base}/collection/v1_0/requesttopay/${refId}`, {
+    headers: {
+      Authorization: 'Bearer ' + token,
+      'X-Target-Environment': MOMO.env,
+      'Ocp-Apim-Subscription-Key': MOMO.key,
+    },
+  });
+  if (!res.ok) throw new Error('momo_status_failed');
+  return (await res.json()).status; // PENDING | SUCCESSFUL | FAILED
+}
+
 const ORDER_STATUSES = ['pending', 'confirmed', 'completed', 'cancelled'];
 
 const MIME = {
@@ -63,6 +137,7 @@ const MIME = {
   '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
   '.ico': 'image/x-icon',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
 };
 
 // ---- Store ----------------------------------------------------------------
@@ -329,6 +404,7 @@ async function handleApi(req, res, url) {
       transaction_fee_rate: TRANSACTION_FEE_RATE,
       monthly_listing_fee: MONTHLY_LISTING_FEE,
       free_trial_days: FREE_TRIAL_DAYS,
+      payment_mode: momoConfigured() ? 'momo_api' : 'manual',
     });
   }
 
@@ -538,13 +614,61 @@ async function handleApi(req, res, url) {
       delivery_address: str(b.delivery_address, 300),
       momo_phone: str(b.momo_phone, 30) || user.phone,
       payment: 'mobile_money',
+      payment_status: 'manual_pending',
       status: 'pending',
       created_at: now(),
       updated_at: now(),
     };
+
+    if (momoConfigured()) {
+      try {
+        order.momo_ref = await momoRequestToPay(order);
+        order.payment_status = 'requested';
+      } catch (e) {
+        console.error('MoMo request-to-pay failed:', e.message);
+        order.payment_status = 'manual_pending'; // fall back to paying the shop directly
+      }
+    }
+
     db.orders.push(order);
     save();
     return sendJson(res, 201, { order: orderView(order) });
+  }
+
+  // Poll / refresh the Mobile Money payment status of an order.
+  if (method === 'GET' && seg[0] === 'api' && seg[1] === 'orders' && seg[3] === 'payment' && seg.length === 4) {
+    const user = requireUser(req);
+    const order = db.orders.find((o) => o.id === seg[2]);
+    if (!order) fail(404, 'order_not_found');
+    const shop = db.shops.find((s) => s.id === order.shopId);
+    const allowed = order.customerId === user.id || (shop && shop.ownerId === user.id) || user.role === 'admin';
+    if (!allowed) fail(403, 'not_allowed');
+    if (order.payment_status === 'requested' && order.momo_ref) {
+      try {
+        const status = await momoPaymentStatus(order.momo_ref);
+        if (status === 'SUCCESSFUL') order.payment_status = 'paid';
+        else if (status === 'FAILED') order.payment_status = 'failed';
+        order.updated_at = now();
+        save();
+      } catch {
+        // keep current status; client can retry
+      }
+    }
+    return sendJson(res, 200, { payment_status: order.payment_status });
+  }
+
+  // Owner confirms they received a manual Mobile Money payment.
+  if (method === 'POST' && seg[0] === 'api' && seg[1] === 'orders' && seg[3] === 'paid' && seg.length === 4) {
+    const user = requireUser(req);
+    const order = db.orders.find((o) => o.id === seg[2]);
+    if (!order) fail(404, 'order_not_found');
+    const shop = db.shops.find((s) => s.id === order.shopId);
+    if (!shop || (shop.ownerId !== user.id && user.role !== 'admin')) fail(403, 'not_your_shop');
+    if (order.status === 'cancelled') fail(409, 'order_cancelled');
+    order.payment_status = 'paid';
+    order.updated_at = now();
+    save();
+    return sendJson(res, 200, { order: orderView(order) });
   }
 
   if (method === 'GET' && p === '/api/my/orders') {
