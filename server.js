@@ -140,6 +140,8 @@ function sendJson(res, status, obj) {
     'Content-Length': Buffer.byteLength(body),
   });
   res.end(body);
+  // Truthy return lets handleSurvey signal "handled" via `return sendJson(...)`.
+  return true;
 }
 
 function readBody(req, maxBytes = 256 * 1024) {
@@ -639,7 +641,10 @@ async function handleSurvey(req, res, url) {
       if (key !== ADMIN_KEY) return sendJson(res, 401, { error: 'unauthorized' });
     }
     const responses = readSurveyResponses();
-    if (p === '/api/responses') return sendJson(res, 200, { responses });
+    if (p === '/api/responses') {
+      sendJson(res, 200, { responses });
+      return true;
+    }
     if (p === '/api/stats') {
       const stats = {
         total: responses.length,
@@ -660,7 +665,8 @@ async function handleSurvey(req, res, url) {
           for (const v of values) stats.answer_counts[q][v] = (stats.answer_counts[q][v] || 0) + 1;
         }
       }
-      return sendJson(res, 200, stats);
+      sendJson(res, 200, stats);
+      return true;
     }
     const metaCols = ['id', 'submitted_at', 'role', 'language', 'name', 'phone', 'district', 'contact_ok'];
     const answerKeys = [];
