@@ -1,0 +1,14 @@
+{
+  "name": "isoko-survey",
+  "version": "1.0.0",
+  "description": "iSoko Rwanda market-validation survey — bilingual (English/Kinyarwanda) feedback collection from customers and shop owners.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED"
+}
