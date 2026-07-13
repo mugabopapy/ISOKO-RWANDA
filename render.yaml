@@ -2,11 +2,22 @@ services:
   - type: web
     name: isoko-rwanda
     runtime: node
-    plan: free
+    # A persistent disk requires a paid instance (Starter, ~$7/month). This is
+    # what keeps user accounts, shops, orders and uploaded photos saved forever.
+    # To try it for free first, change `plan` to `free` and DELETE the `disk`
+    # block below — but note: on the free plan all data is wiped on every
+    # restart/redeploy, so only use free for a quick demo, not real users.
+    plan: starter
     buildCommand: 'echo "no build needed"'
     startCommand: npm start
     healthCheckPath: /api/meta
+    disk:
+      name: isoko-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
+      - key: DATA_DIR
+        value: /var/data # saved on the persistent disk above
       - key: ADMIN_EMAIL
         value: admin@isoko.rw
       - key: ADMIN_PASSWORD
@@ -14,4 +25,4 @@ services:
       - key: ADMIN_KEY
         generateValue: true
       - key: SEED_DEMO
-        value: 'true' # fills the map with 10 demo shops on first boot; set to 'false' for a clean start
+        value: 'true' # fills the map with demo shops on first boot; set to 'false' for a clean start

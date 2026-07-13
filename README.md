@@ -44,7 +44,9 @@ The platform admin dashboard shows GMV, collected transaction-fee revenue, and m
 - **Browse** (`/`) — hero visuals, illustrated category tiles, search, and a **live map** (Leaflet/OpenStreetMap, no API key needed). Shops appear as pins with photo popups; with location permission, results sort by distance. Logged-in customers get a personalized **"For you"** row based on the services they need.
 - **Shop page** (`/shop.html?id=…`) — shop photo banner, real inventory with prices, stock and item photos, cart, and checkout with **Mobile Money** (payment flow is simulated for the MVP; funds are "held" and released to the shop when the order is completed).
 - **Owner dashboard** (`/dashboard.html`) — register shops (tap the map to pin the exact location), **upload shop and product photos**, manage inventory (products, services, rentals, sessions — leave stock empty for unlimited/services), and process orders: confirm → complete (or cancel; stock is restored).
-- **Customer dashboard** (`/orders.html`) — spending stats, editable profile and services-needed interests, full order history, cancel while pending.
+- **Customer dashboard** (`/orders.html`) — spending stats, editable profile and services-needed interests, full order history, cancel while pending, and **rate shops** after a completed order.
+- **Ratings & reviews** — customers who completed an order can leave a 1–5 star rating and comment (one per shop, editable). Average ratings show on shop cards, the map, and the shop page; reviews are listed on the shop page. This is the trust layer that makes the marketplace defensible.
+- **About / How it works** (`/about.html`) — bilingual page explaining the mission, the two-sided flow, and a transparent breakdown of exactly how iSoko earns (free listing, free first month, 4% per completed order, 5,000 RWF/month after).
 - **Platform admin** (`/platform-admin.html`) — totals, GMV, fee revenue, listing revenue, **orders-per-day and revenue-by-category charts**, every shop with billing status, recent orders. Log in with the admin account.
 - **Feedback** (`/survey.html`) — bilingual customer/shop-owner feedback survey, with its own admin at `/survey-admin.html` and CSV export.
 
@@ -64,6 +66,7 @@ On first boot the server seeds a platform admin account (`admin@isoko.rw`) and p
 | Var | Purpose |
 | --- | --- |
 | `PORT` | HTTP port (default 3000) |
+| `DATA_DIR` | Where all data + uploaded photos are stored (default `./data`). Point at a mounted persistent disk in production so nothing is lost on restart. |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Platform admin account (seeded on first boot) |
 | `ADMIN_KEY` | Protects the survey admin endpoints |
 
@@ -79,22 +82,33 @@ Seeds **30 providers** across Kigali, Huye, Musanze and Rubavu — shops, pharma
 
 ## Put it online (no coding tools needed)
 
-You do not need VS Code or any programming tools — only a web browser. The easiest way is Render (free plan available):
+You do not need VS Code or any programming tools — only a web browser. The easiest way is Render:
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/mugabopapy/ISOKO-RWANDA)
 
 1. Click the button above (works on a phone too).
-2. Sign up on Render free of charge — choosing **"Sign in with GitHub"** is easiest.
+2. Sign up on Render — choosing **"Sign in with GitHub"** is easiest.
 3. Render reads this repository's `render.yaml` automatically. It will ask you to type an **ADMIN_PASSWORD** — choose a strong password; this is how you will log in as the platform admin.
 4. Click **Apply / Deploy**. After 1–2 minutes your platform is live at an address like `https://isoko-rwanda.onrender.com`.
 5. Open that address — that is your live iSoko. Share this link with shop owners and customers.
 6. To manage the platform, open `/auth.html` on your live site and log in with `admin@isoko.rw` and the password you chose, then open **Admin** in the menu.
 
-The deployment starts with 10 demo shops so the map looks alive. To launch clean, set the `SEED_DEMO` environment variable to `false` in Render before deploying (or delete the demo shops from the admin later).
+### Will users' data and photos be saved? (Read this before inviting real users)
 
-**Important (free plan limits):** on Render's free plan the app falls asleep after 15 minutes without visitors (the first visit after that takes ~1 minute to wake up), and stored data can be lost when the service restarts. When you have real users, upgrade the service ($7/month) and attach a **persistent disk** mounted at `/opt/render/project/src/data` so shops and orders are stored permanently.
+**Yes — as configured here.** `render.yaml` sets up a **persistent disk** mounted at `/var/data` and points `DATA_DIR` at it. All accounts, shops, orders, reviews **and uploaded photos** are written there and **survive every restart and redeploy**. This requires Render's **Starter plan (~$7/month)**, because only paid instances can have a disk. This is the setup to use once real people are signing up.
 
-Any other Node.js host also works (Railway, Fly.io, a VPS — a `Dockerfile` is included). Persist the `data/` directory and set `ADMIN_PASSWORD` and `ADMIN_KEY`.
+**Free trial option (data is temporary):** to try it at zero cost first, edit `render.yaml` and set `plan: free`, then delete the `disk:` block and the `DATA_DIR` variable. It will run, but **every restart wipes all data and photos** — fine for a quick demo, not for real users.
+
+### Why it can feel slow, and how to fix it
+
+- **Free plan sleeps.** On the free plan the app goes to sleep after 15 minutes with no visitors, so the *next* visit takes ~30–60 seconds to wake up. The **Starter plan does not sleep** — it stays fast and instant. (The disk setup above already uses Starter, which fixes this too.)
+- **Repeat visits are now fast.** Images, CSS and JS are sent with cache headers and the app registers a service worker, so after the first load the app opens quickly and works even on weak connections.
+
+Any other Node.js host also works (Railway, Fly.io, a VPS — a `Dockerfile` is included). Set `DATA_DIR` to a folder on a persistent volume, plus `ADMIN_PASSWORD` and `ADMIN_KEY`.
+
+## Photos
+
+Every shop and product can have a **real photo**, uploaded by the owner from their phone or computer (in the registration form, or later from the dashboard). Photos are resized in the browser before upload and stored under `DATA_DIR/uploads`, so with the persistent disk they stay forever. Until an owner uploads a real photo, the shop shows a clean category illustration as a placeholder so the site never looks empty.
 
 ## API overview
 

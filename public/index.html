@@ -47,10 +47,12 @@
     <p class="empty-state hidden" id="emptyState"></p>
   </div>
 
+  <footer id="site-footer"></footer>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="common.js"></script>
   <script>
-    const { t, api, catLabel, catImg, shopPhoto, CATEGORIES, esc, renderHeader } = window.ISOKO;
+    const { t, api, catLabel, catImg, shopPhoto, CATEGORIES, esc, renderHeader, renderFooter } = window.ISOKO;
     const KIGALI = [-1.9441, 30.0619];
     let shops = [];
     let activeCategory = '';
@@ -88,10 +90,14 @@
       const dist = userPos ? t('distanceAway', distanceKm(userPos, [s.lat, s.lng]).toFixed(1)) : '';
       const card = document.createElement('div');
       card.className = 'shop-card';
+      const ratingLine = s.review_count
+        ? `<p class="rating-line">${window.ISOKO.stars(s.rating, s.review_count)}</p>`
+        : '';
       card.innerHTML = `
         <img class="card-photo" src="${esc(shopPhoto(s))}" alt="" loading="lazy" />
         <span class="cat-tag">${esc(catLabel(s.category))}</span>
         <h3>${esc(s.name)}</h3>
+        ${ratingLine}
         <p class="desc">${esc(s.description || '')}</p>
         <p class="meta">${s.product_count} ${t('items')} · ${s.completed_orders} ${t('ordersDone')}${dist ? ' · ' + dist : ''}</p>
         <p class="meta">${esc(s.address || '')}</p>
@@ -202,6 +208,7 @@
     }
 
     renderTiles();
+    renderFooter();
     renderHeader('home').then((user) => {
       me = user;
       load();
