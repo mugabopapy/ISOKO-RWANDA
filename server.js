@@ -21,7 +21,9 @@ const ADMIN_KEY = process.env.ADMIN_KEY || ''; // survey admin endpoints
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@isoko.rw';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 
-const DATA_DIR = path.join(__dirname, 'data');
+// DATA_DIR can point at a mounted persistent disk (e.g. Render disk) so that
+// accounts, shops, orders and uploaded photos survive restarts/redeploys.
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const SURVEY_FILE = path.join(DATA_DIR, 'responses.jsonl');
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -986,7 +988,16 @@ function serveStatic(req, res, urlPath) {
       return res.end('Not found');
     }
     const ext = path.extname(absolute).toLowerCase();
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+    const headers = { 'Content-Type': MIME[ext] || 'application/octet-stream' };
+    // Cache images/fonts long-term, and uploaded photos too; keep HTML fresh.
+    if (['.jpg', '.jpeg', '.png', '.webp', '.svg', '.ico'].includes(ext)) {
+      headers['Cache-Control'] = 'public, max-age=604800'; // 7 days
+    } else if (['.css', '.js'].includes(ext)) {
+      headers['Cache-Control'] = 'public, max-age=86400'; // 1 day
+    } else {
+      headers['Cache-Control'] = 'no-cache';
+    }
+    res.writeHead(200, headers);
     res.end(data);
   });
 }
