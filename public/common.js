@@ -111,6 +111,20 @@
       payFailedBody: 'The payment did not go through. You can pay the shop directly by Mobile Money instead.',
       markPaid: 'Payment received',
       checkingPayment: 'Checking payment…',
+      reviews: 'Reviews',
+      noReviews: 'No reviews yet — be the first after your order.',
+      rateShop: 'Rate this shop',
+      yourRating: 'Your rating',
+      reviewPlaceholder: 'Share your experience (optional)…',
+      submitReview: 'Submit review',
+      updateReview: 'Update review',
+      reviewThanks: 'Thanks for your review!',
+      reviewNeedPurchase: 'You can review a shop after your order is completed.',
+      newReviews: (n) => `${n} review${n === 1 ? '' : 's'}`,
+      navAbout: 'About',
+      footerAbout: 'About iSoko',
+      footerHow: 'How it works',
+      footerContact: 'Contact',
     },
     rw: {
       navHome: 'Shakisha', navOrders: 'Ibyo natumije', navDashboard: 'Amaduka yanjye', navAdmin: 'Ubuyobozi',
@@ -206,6 +220,20 @@
       payFailedBody: 'Kwishyura ntibyagenze neza. Ushobora kwishyura iduka kuri Mobile Money yaryo.',
       markPaid: 'Ubwishyu bwakiriwe',
       checkingPayment: 'Turi kugenzura ubwishyu…',
+      reviews: 'Ibitekerezo by\u2019abaguzi',
+      noReviews: 'Nta gitekerezo kirabaho — ba uwa mbere nyuma yo gutumiza.',
+      rateShop: 'Tanga amanota ku iduka',
+      yourRating: 'Amanota yawe',
+      reviewPlaceholder: 'Vuga uko byakugendekeye (si itegeko)…',
+      submitReview: 'Ohereza igitekerezo',
+      updateReview: 'Hindura igitekerezo',
+      reviewThanks: 'Murakoze ku gitekerezo cyawe!',
+      reviewNeedPurchase: 'Ushobora gutanga igitekerezo iduka nyuma y\u2019uko itumiza ryawe rirangiye.',
+      newReviews: (n) => `Ibitekerezo ${n}`,
+      navAbout: 'Ibyerekeye',
+      footerAbout: 'Ibyerekeye iSoko',
+      footerHow: 'Uko bikora',
+      footerContact: 'Twandikire',
     },
   };
 
@@ -284,6 +312,7 @@
     if (user && user.role === 'customer') links += link('/orders.html', 'myAccount', 'orders');
     if (user && (user.role === 'owner' || user.role === 'admin')) links += link('/dashboard.html', 'navDashboard', 'dashboard');
     if (user && user.role === 'admin') links += link('/platform-admin.html', 'navAdmin', 'admin');
+    links += link('/about.html', 'navAbout', 'about');
     links += link('/survey.html', 'navSurvey', 'survey');
 
     header.innerHTML = `
@@ -319,6 +348,27 @@
   const catImg = (id) => (CATEGORIES[id] ? CATEGORIES[id].img : '/img/cat-other.jpg');
   const shopPhoto = (shop) => shop.photo || catImg(shop.category);
 
+  /** Star rating as text (★★★★☆). `count` optionally appends the review count. */
+  function stars(rating, count) {
+    const full = Math.round(rating || 0);
+    const s = '★★★★★☆☆☆☆☆'.slice(5 - full, 10 - full);
+    if (!rating) return count === undefined ? '' : '';
+    const label = `<span class="stars" title="${rating}">${s}</span> ${rating}`;
+    return count !== undefined ? `${label} (${count})` : label;
+  }
+
+  function renderFooter() {
+    const el = document.getElementById('site-footer');
+    if (!el) return;
+    el.innerHTML = `
+      <div class="footer-links">
+        <a href="/about.html">${t('footerAbout')}</a>
+        <a href="/about.html#how">${t('footerHow')}</a>
+        <a href="/survey.html">${t('navSurvey')}</a>
+      </div>
+      <div>iSoko Rwanda · Kigali · ${new Date().getFullYear()}</div>`;
+  }
+
   /** Read a picked image file, downscale it on a canvas, return a compact JPEG data URL. */
   function fileToDataUrl(file, maxDim = 1000) {
     return new Promise((resolve, reject) => {
@@ -345,7 +395,7 @@
 
   window.ISOKO = {
     CATEGORIES, t, lang: () => lang, setLang, catLabel, catImg, shopPhoto,
-    api, currentUser, logout, renderHeader,
+    api, currentUser, logout, renderHeader, renderFooter, stars,
     getCart, setCart, clearCart,
     money, esc, fileToDataUrl,
   };

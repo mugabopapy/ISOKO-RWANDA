@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#057a55" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+  <title>iSoko Rwanda — About / How it works</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="market.css" />
+</head>
+<body class="market">
+  <header id="site-header"></header>
+
+  <div class="page" style="max-width:820px">
+    <section class="hero" style="min-height:200px">
+      <h1 id="aboutTitle"></h1>
+      <p id="aboutLead"></p>
+    </section>
+
+    <div class="panel">
+      <h2 id="missionH"></h2>
+      <p class="intro" id="missionP"></p>
+    </div>
+
+    <div class="panel" id="how">
+      <h2 id="howH"></h2>
+      <div class="two-col">
+        <div>
+          <h3 id="ownersH"></h3>
+          <ol class="how-list" id="ownersList"></ol>
+        </div>
+        <div>
+          <h3 id="customersH"></h3>
+          <ol class="how-list" id="customersList"></ol>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 id="revenueH"></h2>
+      <p class="intro" id="revenueP"></p>
+      <table class="data" id="revenueTable"></table>
+    </div>
+
+    <div class="panel">
+      <h2 id="contactH"></h2>
+      <p class="intro" id="contactP"></p>
+      <a class="btn btn-primary" id="ctaBtn" href="/auth.html?role=owner"></a>
+    </div>
+  </div>
+
+  <footer id="site-footer"></footer>
+
+  <script src="common.js"></script>
+  <script>
+    const { t, lang, renderHeader, renderFooter, money } = window.ISOKO;
+
+    const COPY = {
+      en: {
+        title: 'About iSoko Rwanda',
+        lead: 'One platform where every shop, service and rental near you is on the map — so you can find it, order it, and pay from your phone.',
+        missionH: 'Our mission',
+        missionP:
+          'iSoko Rwanda was built to help hard-working shop owners be discovered beyond their street, and to save customers the time and transport money wasted going shop to shop not knowing what is in stock. We connect the two sides of every neighbourhood market on one simple, bilingual platform — in English and Kinyarwanda — so local businesses grow and families shop with less hassle.',
+        howH: 'How it works',
+        ownersH: 'For shop owners & service providers',
+        owners: [
+          'Create a free account and register your shop — pin its exact spot on the map.',
+          'Add your products or services with prices and photos. Leave stock empty for services, rentals or classes.',
+          'Receive orders with the customer’s name, phone and delivery choice.',
+          'Get paid by Mobile Money and confirm each order — from pending to completed.',
+          'Your first month is completely free. After that it is a small listing fee, and iSoko only takes a small cut when you actually make a sale.',
+        ],
+        customersH: 'For customers',
+        customers: [
+          'Search or browse shops, clinics, rentals, gyms, coaches and tutors near you on the map.',
+          'See real inventory, prices and photos before you decide.',
+          'Place an order and pay with Mobile Money — pickup or delivery.',
+          'Track your order status and build a history with shops you trust.',
+          'Rate the shops you buy from so the whole community shops with confidence.',
+        ],
+        revenueH: 'How iSoko earns — transparently',
+        revenueP:
+          'We believe you should know exactly how the platform makes money. iSoko earns only when shop owners earn: a small percentage of each completed order, plus a modest monthly listing fee after a free first month. Basic browsing and signing up are always free.',
+        revenueRows: [
+          ['Basic listing & browsing', 'Always free'],
+          ['First month for new shops', 'Free — no listing fee'],
+          ['Transaction fee', '4% of each completed order'],
+          ['Monthly listing fee (after free month)', '5,000 RWF / shop / month'],
+        ],
+        contactH: 'Join iSoko',
+        contactP:
+          'Are you a shop owner, doctor, landlord, coach or tutor? List your business today and be found by customers near you.',
+        cta: 'List your business — free',
+      },
+      rw: {
+        title: 'Ibyerekeye iSoko Rwanda',
+        lead: 'Urubuga rumwe aho buri duka, serivisi n\u2019inzu ikodeshwa biri hafi yawe biboneka ku ikarita — ukabibona, ukabitumiza, ukishyura ukoresheje telefoni yawe.',
+        missionH: 'Intego yacu',
+        missionP:
+          'iSoko Rwanda yashyiriweho gufasha abacuruzi bakora cyane kumenyekana hanze y\u2019umuhanda wabo, no kubuza abaguzi gutakaza igihe n\u2019amafaranga y\u2019urugendo bazenguruka amaduka batazi ibihari. Duhuza impande zombi z\u2019isoko rya buri karere ku rubuga rumwe rworoshye, mu Cyongereza no mu Kinyarwanda, kugira ngo ubucuruzi bukure kandi imiryango igure mu buryo bworoshye.',
+        howH: 'Uko bikora',
+        ownersH: 'Ku bacuruzi n\u2019abatanga serivisi',
+        owners: [
+          'Fungura konti ku buntu wandikishe iduka ryawe — werekane aho riherereye ku ikarita.',
+          'Ongeraho ibicuruzwa cyangwa serivisi n\u2019ibiciro n\u2019amafoto. Serivisi, amazu cyangwa amasomo usiga umubare ubusa.',
+          'Akira ibyatumijwe hamwe n\u2019izina ry\u2019umukiriya, telefoni n\u2019uko ashaka kubibona.',
+          'Wishyurwe kuri Mobile Money wemeze buri itumiza — kuva ku bitegereje kugeza birangiye.',
+          'Ukwezi kwa mbere ni ubuntu bwuzuye. Nyuma hakurikiraho amafaranga make yo kwandikisha, kandi iSoko ifata gato gusa iyo ugurishije koko.',
+        ],
+        customersH: 'Ku baguzi',
+        customers: [
+          'Shakisha cyangwa urebe amaduka, amavuriro, amazu, siporo, abatoza n\u2019abarimu bari hafi yawe ku ikarita.',
+          'Reba ibicuruzwa nyabyo, ibiciro n\u2019amafoto mbere yo guhitamo.',
+          'Tumiza wishyure na Mobile Money — ubifate cyangwa bikuzanirwe.',
+          'Kurikirana aho itumiza rigeze wubake amateka n\u2019amaduka wizera.',
+          'Tanga amanota ku maduka ugураho kugira ngo umuryango wose ugure adafite impungenge.',
+        ],
+        revenueH: 'Uko iSoko yinjiza — ku mucyo',
+        revenueP:
+          'Twizera ko ugomba kumenya neza uko urubuga rwinjiza. iSoko yinjiza gusa iyo abacuruzi binjije: ijanisha rito kuri buri itumiza ryarangiye, hamwe n\u2019amafaranga make yo kwandikisha ku kwezi nyuma y\u2019ukwezi kwa mbere k\u2019ubuntu. Gushakisha no kwiyandikisha ni ubuntu buri gihe.',
+        revenueRows: [
+          ['Kwandikisha no gushakisha', 'Ubuntu buri gihe'],
+          ['Ukwezi kwa mbere ku maduka mashya', 'Ubuntu — nta mafaranga'],
+          ['Amafaranga ku itumiza', '4% kuri buri itumiza ryarangiye'],
+          ['Amafaranga yo kwandikisha ku kwezi (nyuma y\u2019ukwezi k\u2019ubuntu)', '5.000 RWF / iduka / ukwezi'],
+        ],
+        contactH: 'Injira muri iSoko',
+        contactP:
+          'Uri umucuruzi, umuganga, nyir\u2019amazu, umutoza cyangwa umwarimu? Andikisha ubucuruzi bwawe uyu munsi umenyekane ku baguzi bo hafi yawe.',
+        cta: 'Andikisha ubucuruzi bwawe — ubuntu',
+      },
+    };
+
+    const c = COPY[lang()] || COPY.en;
+    const $ = (id) => document.getElementById(id);
+    $('aboutTitle').textContent = c.title;
+    $('aboutLead').textContent = c.lead;
+    $('missionH').textContent = c.missionH;
+    $('missionP').textContent = c.missionP;
+    $('howH').textContent = c.howH;
+    $('ownersH').textContent = c.ownersH;
+    $('customersH').textContent = c.customersH;
+    $('ownersList').innerHTML = c.owners.map((x) => `<li>${x}</li>`).join('');
+    $('customersList').innerHTML = c.customers.map((x) => `<li>${x}</li>`).join('');
+    $('revenueH').textContent = c.revenueH;
+    $('revenueP').textContent = c.revenueP;
+    $('revenueTable').innerHTML =
+      '<tbody>' + c.revenueRows.map((r) => `<tr><td>${r[0]}</td><td style="font-weight:600;white-space:nowrap">${r[1]}</td></tr>`).join('') + '</tbody>';
+    $('contactH').textContent = c.contactH;
+    $('contactP').textContent = c.contactP;
+    $('ctaBtn').textContent = c.cta;
+
+    renderFooter();
+    renderHeader('about');
+  </script>
+</body>
+</html>

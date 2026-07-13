@@ -144,7 +144,7 @@ const MIME = {
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
-let db = { users: [], sessions: {}, shops: [], products: [], orders: [] };
+let db = { users: [], sessions: {}, shops: [], products: [], orders: [], reviews: [] };
 if (fs.existsSync(DB_FILE)) {
   try {
     db = Object.assign(db, JSON.parse(fs.readFileSync(DB_FILE, 'utf8')));
@@ -297,6 +297,13 @@ function requireUser(req) {
 
 // ---- Serialization ----------------------------------------------------------
 
+function shopRating(shopId) {
+  const reviews = db.reviews.filter((r) => r.shopId === shopId);
+  if (!reviews.length) return { rating: 0, review_count: 0 };
+  const sum = reviews.reduce((s, r) => s + r.rating, 0);
+  return { rating: Math.round((sum / reviews.length) * 10) / 10, review_count: reviews.length };
+}
+
 function shopSummary(shop) {
   return {
     id: shop.id,
@@ -311,18 +318,32 @@ function shopSummary(shop) {
     created_at: shop.created_at,
     product_count: db.products.filter((p) => p.shopId === shop.id).length,
     completed_orders: db.orders.filter((o) => o.shopId === shop.id && o.status === 'completed').length,
+    ...shopRating(shop.id),
+  };
+}
+
+function reviewView(r) {
+  const author = db.users.find((u) => u.id === r.customerId);
+  return {
+    id: r.id,
+    rating: r.rating,
+    comment: r.comment,
+    created_at: r.created_at,
+    author_name: author ? author.name.split(' ')[0] : 'Customer',
   };
 }
 
 function orderView(order) {
   const shop = db.shops.find((s) => s.id === order.shopId);
   const customer = db.users.find((u) => u.id === order.customerId);
+  const myReview = db.reviews.find((r) => r.shopId === order.shopId && r.customerId === order.customerId);
   return {
     ...order,
     shop_name: shop ? shop.name : '(deleted shop)',
     shop_phone: shop ? shop.phone : '',
     customer_name: customer ? customer.name : '',
     customer_phone: customer ? customer.phone : '',
+    my_review: myReview ? { rating: myReview.rating, comment: myReview.comment } : null,
   };
 }
 
@@ -431,7 +452,38 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, {
       shop: shopSummary(shop),
       products: db.products.filter((pr) => pr.shopId === shop.id),
+      reviews: db.reviews
+        .filter((r) => r.shopId === shop.id)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .map(reviewView),
     });
+  }
+
+  // ---------- Reviews ----------
+  // Only customers with a completed order from the shop can review it (one per shop, editable).
+  if (method === 'POST' && seg[0] === 'api' && seg[1] === 'shops' && seg[3] === 'reviews' && seg.length === 4) {
+    const user = requireUser(req);
+    const shop = db.shops.find((s) => s.id === seg[2]);
+    if (!shop) fail(404, 'shop_not_found');
+    const hasCompleted = db.orders.some(
+      (o) => o.shopId === shop.id && o.customerId === user.id && o.status === 'completed'
+    );
+    if (!hasCompleted) fail(403, 'must_purchase_first');
+    const b = await readBody(req);
+    const rating = Math.round(num(b.rating));
+    if (!(rating >= 1 && rating <= 5)) fail(400, 'invalid_rating');
+    const comment = str(b.comment, 600);
+    let review = db.reviews.find((r) => r.shopId === shop.id && r.customerId === user.id);
+    if (review) {
+      review.rating = rating;
+      review.comment = comment;
+      review.created_at = now();
+    } else {
+      review = { id: uid(), shopId: shop.id, customerId: user.id, rating, comment, created_at: now() };
+      db.reviews.push(review);
+    }
+    save();
+    return sendJson(res, 201, { review: reviewView(review) });
   }
 
   // ---------- Shops (owner) ----------

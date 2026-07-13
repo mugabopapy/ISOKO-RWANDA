@@ -23,6 +23,7 @@
           <h2 id="invTitle"></h2>
           <div id="productList"></div>
         </div>
+        <div class="panel" id="reviewsPanel"></div>
       </div>
 
       <div class="cart-box">
@@ -34,12 +35,14 @@
     </div>
   </div>
 
+  <footer id="site-footer"></footer>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="common.js"></script>
   <script>
-    const { t, api, catLabel, esc, money, renderHeader, getCart, setCart, clearCart, shopPhoto } = window.ISOKO;
+    const { t, api, catLabel, esc, money, renderHeader, renderFooter, getCart, setCart, clearCart, shopPhoto, stars } = window.ISOKO;
     const shopId = new URLSearchParams(location.search).get('id');
-    let shop, products = [], user = null;
+    let shop, products = [], reviews = [], user = null;
 
     function cartItems() {
       const cart = getCart();
@@ -66,7 +69,8 @@
       document.getElementById('shopPanel').innerHTML = `
         <img src="${esc(shopPhoto(shop))}" style="width:calc(100% + 52px);margin:-26px -26px 16px;height:220px;object-fit:cover;border-radius:var(--radius) var(--radius) 0 0" alt="" />
         <span class="cat-tag" style="background:var(--green-soft);color:var(--green-dark);border-radius:999px;padding:4px 12px;font:600 12.5px Inter">${esc(catLabel(shop.category))}</span>
-        <h1 style="margin:10px 0 8px">${esc(shop.name)}</h1>
+        <h1 style="margin:10px 0 6px">${esc(shop.name)}</h1>
+        ${shop.review_count ? `<p class="rating-line" style="margin-bottom:8px">${stars(shop.rating, shop.review_count)}</p>` : ''}
         <p class="intro" style="margin-bottom:10px">${esc(shop.description || '')}</p>
         <p class="meta" style="color:var(--ink-soft);font-size:14px">
           📍 ${esc(shop.address || '')}<br>📞 ${esc(shop.phone || '')}<br>
@@ -75,6 +79,79 @@
       const map = L.map('miniMap', { scrollWheelZoom: false }).setView([shop.lat, shop.lng], 15);
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
       L.marker([shop.lat, shop.lng]).addTo(map).bindPopup(esc(shop.name));
+    }
+
+    function renderReviews() {
+      const panel = document.getElementById('reviewsPanel');
+      const canReview = user && user.role === 'customer';
+      let html = `<h2>${t('reviews')}${shop.review_count ? ' · ' + stars(shop.rating, shop.review_count) : ''}</h2>`;
+      if (canReview) {
+        const mine = reviews.find((r) => r.author_name && r.mine);
+        html += `<div id="reviewForm" style="margin-bottom:16px"></div>`;
+      }
+      html += reviews.length
+        ? reviews
+            .map(
+              (r) => `<div class="review-card">
+                <div class="review-head">
+                  <span class="review-author">${esc(r.author_name)} <span class="stars">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</span></span>
+                  <span class="review-date">${esc((r.created_at || '').slice(0, 10))}</span>
+                </div>
+                ${r.comment ? `<div class="review-comment">${esc(r.comment)}</div>` : ''}
+              </div>`
+            )
+            .join('')
+        : `<p class="empty-state">${t('noReviews')}</p>`;
+      panel.innerHTML = html;
+      if (canReview) renderReviewForm();
+    }
+
+    let pickedRating = 0;
+    function renderReviewForm() {
+      const box = document.getElementById('reviewForm');
+      if (!box) return;
+      box.innerHTML = `
+        <div class="star-input" id="starInput">${[1, 2, 3, 4, 5].map((n) => `<span data-n="${n}">★</span>`).join('')}</div>
+        <textarea id="reviewComment" placeholder="${t('reviewPlaceholder')}" style="margin:10px 0"></textarea>
+        <p class="notice err hidden" id="reviewErr"></p>
+        <button class="btn btn-primary btn-sm" id="submitReviewBtn">${t('submitReview')}</button>`;
+      const paint = () =>
+        box.querySelectorAll('#starInput span').forEach((s) => s.classList.toggle('on', Number(s.dataset.n) <= pickedRating));
+      box.querySelectorAll('#starInput span').forEach((s) =>
+        s.addEventListener('click', () => {
+          pickedRating = Number(s.dataset.n);
+          paint();
+        })
+      );
+      document.getElementById('submitReviewBtn').addEventListener('click', async () => {
+        const err = document.getElementById('reviewErr');
+        err.classList.add('hidden');
+        if (!pickedRating) {
+          err.textContent = t('yourRating');
+          err.classList.remove('hidden');
+          return;
+        }
+        try {
+          await api(`/api/shops/${shopId}/reviews`, {
+            method: 'POST',
+            body: { rating: pickedRating, comment: document.getElementById('reviewComment').value },
+          });
+          const fresh = await api('/api/shops/' + shopId);
+          shop = fresh.shop;
+          reviews = fresh.reviews;
+          pickedRating = 0;
+          renderShopHeaderRating();
+          renderReviews();
+        } catch (e) {
+          err.textContent = e.error === 'must_purchase_first' ? t('reviewNeedPurchase') : t('errGeneric');
+          err.classList.remove('hidden');
+        }
+      });
+    }
+
+    function renderShopHeaderRating() {
+      const line = document.querySelector('#shopPanel .rating-line');
+      if (line && shop.review_count) line.innerHTML = stars(shop.rating, shop.review_count);
     }
 
     function renderProducts() {
@@ -233,13 +310,16 @@
     }
 
     (async () => {
+      renderFooter();
       user = await renderHeader('');
       const data = await api('/api/shops/' + shopId);
       shop = data.shop;
       products = data.products;
+      reviews = data.reviews || [];
       renderShop();
       renderProducts();
       renderCart();
+      renderReviews();
     })().catch(() => {
       document.getElementById('shopPanel').innerHTML = '<p class="empty-state">Shop not found.</p>';
     });

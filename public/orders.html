@@ -38,9 +38,11 @@
     </div>
   </div>
 
+  <footer id="site-footer"></footer>
+
   <script src="common.js"></script>
   <script>
-    const { t, api, esc, money, renderHeader, CATEGORIES, lang } = window.ISOKO;
+    const { t, api, esc, money, renderHeader, renderFooter, CATEGORIES, lang } = window.ISOKO;
     const $ = (id) => document.getElementById(id);
     let me = null;
     let interests = [];
@@ -109,6 +111,7 @@
           </div>
           <div class="order-actions">
             ${o.status === 'pending' ? `<button class="btn btn-ghost btn-sm" data-cancel>${t('cancelOrder')}</button>` : ''}
+            ${o.status === 'completed' ? `<a class="btn btn-ghost btn-sm" href="/shop.html?id=${o.shopId}#reviews">${o.my_review ? '★ ' + o.my_review.rating + '/5' : '⭐ ' + t('rateShop')}</a>` : ''}
           </div>`;
         const cancelBtn = card.querySelector('[data-cancel]');
         if (cancelBtn)
@@ -128,6 +131,7 @@
       $('pInterestsLbl').textContent = t('interestsLabel');
       $('saveBtn').textContent = t('saveProfile');
       $('savedOk').textContent = t('profileSaved');
+      renderFooter();
 
       me = await renderHeader('orders');
       if (!me) {
